@@ -130,35 +130,7 @@ export default function DeliveryDashboard({ navigation }) {
           </View>
         </View>
 
-        {/* Today's Summary */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Today's Summary</Text>
-          <View style={styles.summaryCard}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Today's Pickups:</Text>
-              <Text style={styles.summaryValue}>{dashboardData.todayPickups}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Today's Earnings:</Text>
-              <Text style={styles.summaryValue}>₹{dashboardData.todayEarnings}</Text>
-            </View>
-          </View>
-        </View>
 
-        {/* Performance */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Performance</Text>
-          <View style={styles.performanceCard}>
-            <View style={styles.ratingContainer}>
-              <Text style={styles.ratingValue}>{dashboardData.rating.average}</Text>
-              <Text style={styles.starIcon}>⭐</Text>
-            </View>
-            <Text style={styles.ratingLabel}>Average Rating</Text>
-            <Text style={styles.ratingSubtext}>
-              Based on {dashboardData.rating.total} customer reviews
-            </Text>
-          </View>
-        </View>
 
         {/* Active Notifications */}
         {notifications.length > 0 && (
@@ -370,69 +342,7 @@ const styles = StyleSheet.create({
     color: '#333',
     textAlign: 'center',
   },
-  summaryCard: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 8,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  summaryLabel: {
-    fontSize: 16,
-    color: '#666',
-  },
-  summaryValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  performanceCard: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 8,
-    alignItems: 'center',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  ratingValue: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#4CAF50',
-    marginRight: 8,
-  },
-  starIcon: {
-    fontSize: 24,
-  },
-  ratingLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 4,
-  },
-  ratingSubtext: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-  },
+
   notificationCard: {
     backgroundColor: '#fff',
     padding: 20,
