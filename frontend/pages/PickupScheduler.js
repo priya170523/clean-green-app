@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Button from '../components/Button';
+import { dummyDeliveryAgents } from '../services/dummyData';
 
 export default function PickupScheduler({ navigation }) {
   const [selectedDate, setSelectedDate] = useState('');
@@ -31,10 +32,19 @@ export default function PickupScheduler({ navigation }) {
       Alert.alert('Missing Information', 'Please select date, time, and waste type');
       return;
     }
-    
+
+    // Auto-assign a dummy delivery agent
+    const assignedAgent = dummyDeliveryAgents[Math.floor(Math.random() * dummyDeliveryAgents.length)];
+
     Alert.alert(
-      'Pickup Scheduled!', 
-      `Your ${wasteType} pickup is scheduled for ${selectedDate} at ${selectedTime}`,
+      'Pickup Scheduled!',
+      `Your ${wasteType} pickup is scheduled for ${selectedDate} at ${selectedTime}\n\n` +
+      `📋 Delivery Agent Assigned:\n` +
+      `👤 ${assignedAgent.name}\n` +
+      `📞 ${assignedAgent.phone}\n` +
+      `⭐ Rating: ${assignedAgent.rating}/5\n` +
+      `🚗 ${assignedAgent.vehicle} (${assignedAgent.vehicleNumber})\n\n` +
+      `✅ No need to wait for admin approval!`,
       [
         {
           text: 'OK',

@@ -64,12 +64,13 @@ export default function NotificationPopup({ visible, notification, onClose, onAc
     }
   };
 
-  const handleReject = async () => {
+  const handleReject = () => {
     if (!notification || isRejecting) return;
 
     try {
       setIsRejecting(true);
 
+      // Just hide the notification - no backend call needed
       if (onReject) {
         onReject(notification);
       }

@@ -1,142 +1,61 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import Card from '../components/Card';
-import { userAPI, pickupAPI } from '../services/apiService';
-import { authService } from '../services/authService';
-import notificationService from '../services/notificationService';
-
+import { dummyDeliveryDashboardData, dummyNotifications } from '../services/dummyData';
 
 export default function DeliveryDashboard({ navigation }) {
   const [isOnline, setIsOnline] = useState(false);
-  const [user, setUser] = useState(null);
-  const [dashboardData, setDashboardData] = useState(null);
-  const [loading, setLoading] = useState(true);
-
+  const [dashboardData, setDashboardData] = useState(dummyDeliveryDashboardData);
+  const [notifications, setNotifications] = useState([]);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    loadDashboardData();
-    // Do not auto init sockets until user goes online
-    return () => {
-      notificationService.disconnect();
-    };
+    // Load initial dashboard data
+    setDashboardData(dummyDeliveryDashboardData);
   }, []);
 
-  const setupNotifications = async () => {
-    try {
-      const currentUser = await authService.getCurrentUser();
-      if (currentUser) {
-        // Initialize socket connection
-        notificationService.init(currentUser._id);
+  const handleToggleOnline = () => {
+    const newOnlineStatus = !isOnline;
+    setIsOnline(newOnlineStatus);
 
-        // Join user room for notifications
-        notificationService.joinUserRoom(currentUser._id);
+    if (newOnlineStatus) {
+      // Simulate going online and receiving notifications
+      Alert.alert('Online', 'You are now online and will receive pickup notifications');
 
-        // Listen for pickup requests with simple alert
-        notificationService.onPickupRequest((data) => {
+      // Show dummy notifications after a short delay
+      setTimeout(() => {
+        const randomNotifications = dummyNotifications.slice(0, 2);
+        setNotifications(randomNotifications);
+
+        // Show first notification as alert
+        if (randomNotifications.length > 0) {
+          const notification = randomNotifications[0];
           Alert.alert(
-            'New Pickup Request',
-            `New pickup available ${data.distance} km away. Accept?`,
+            notification.title,
+            notification.message,
             [
               { text: 'Reject', style: 'cancel' },
-              { text: 'Accept', onPress: () => handleNotificationAccept(data) }
+              { text: 'Accept', onPress: () => handleNotificationAccept(notification) }
             ]
           );
-        });
-
-        // Listen for new pickups available
-        notificationService.onNewPickupAvailable((data) => {
-          Alert.alert(
-            'New Pickup Available',
-            'A new pickup is available in your area. Accept?',
-            [
-              { text: 'Reject', style: 'cancel' },
-              { text: 'Accept', onPress: () => handleNotificationAccept(data) }
-            ]
-          );
-        });
-
-        // Listen for earnings updates
-        notificationService.onEarningsUpdate((data) => {
-          Alert.alert('Earnings Updated', `Your earnings: ₹${data.amount}`);
-        });
-      }
-    } catch (error) {
-      console.error('Error setting up notifications:', error);
-    }
-  };
-
-  const handleNotificationAccept = async (notification) => {
-    try {
-      console.log('Accepting notification:', notification);
-
-      // Navigate to route page with pickup data
-      navigation.navigate('DeliveryRoutePage', {
-        pickupData: notification.pickupData
-      });
-    } catch (error) {
-      console.error('Error accepting notification:', error);
-      Alert.alert('Error', 'Failed to accept pickup request');
-    }
-  };
-
-  const handleNotificationReject = async (notification) => {
-    try {
-      console.log('Rejecting notification:', notification);
-      // You can add logic here to send rejection to backend if needed
-    } catch (error) {
-      console.error('Error rejecting notification:', error);
-    }
-  };
-
-  const loadDashboardData = async () => {
-    try {
-      setLoading(true);
-
-      // Get current user
-      const currentUser = await authService.getCurrentUser();
-      setUser(currentUser);
-      setIsOnline(currentUser?.isOnline || false);
-
-      // Get dashboard data
-      const response = await userAPI.getDashboard();
-
-      if (response.status === 'success') {
-        setDashboardData(response.data);
-      }
-    } catch (error) {
-      console.error('Error loading delivery dashboard:', error);
-      Alert.alert('Error', 'Failed to load dashboard data');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleToggleOnline = async () => {
-    try {
-      const newOnlineStatus = !isOnline;
-
-      // Update online status in backend
-      await userAPI.updateOnlineStatus(newOnlineStatus);
-      setIsOnline(newOnlineStatus);
-
-      if (newOnlineStatus) {
-        if (user) {
-          // Initialize socket and join room when going online
-          notificationService.init(user._id);
-          notificationService.joinDeliveryRoom(user._id);
-
-          // Set up notifications
-          await setupNotifications();
         }
-        Alert.alert('Online', 'You are now online and will receive pickup notifications');
-      } else {
-        Alert.alert('Offline', 'You are now offline');
-        notificationService.disconnect();
-      }
-    } catch (error) {
-      console.error('Error toggling online status:', error);
-      Alert.alert('Error', 'Failed to update online status');
+      }, 2000);
+    } else {
+      Alert.alert('Offline', 'You are now offline');
+      setNotifications([]);
     }
+  };
+
+  const handleNotificationAccept = (notification) => {
+    // Navigate to route page with pickup data
+    navigation.navigate('DeliveryRoutePage', {
+      pickupData: notification.pickupData
+    });
+  };
+
+  const handleNotificationReject = (notification) => {
+    // Just remove the notification from the list
+    setNotifications(prev => prev.filter(n => n !== notification));
   };
 
   const handleProfile = () => {
@@ -173,7 +92,7 @@ export default function DeliveryDashboard({ navigation }) {
         <View style={styles.welcomeSection}>
           <Text style={styles.welcomeTitle}>Welcome back!</Text>
           <Text style={styles.welcomeSubtitle}>
-            {user?.name ? `${user.name}, ready for your next pickup?` : 'Ready for your next pickup?'}
+            Ready for your next pickup?
           </Text>
           <View style={styles.statusIndicator}>
             <View style={[styles.statusDot, { backgroundColor: isOnline ? '#4CAF50' : '#f44336' }]} />
@@ -187,12 +106,12 @@ export default function DeliveryDashboard({ navigation }) {
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
             <Text style={styles.statLabel}>Pickups Completed</Text>
-            <Text style={styles.statValue}>{user?.completedPickups || 0}</Text>
+            <Text style={styles.statValue}>{dashboardData.completedDeliveries}</Text>
           </View>
           <View style={styles.statBox}>
             <Text style={styles.statLabel}>Total Earnings</Text>
             <Text style={styles.currencySymbol}>₹</Text>
-            <Text style={styles.statValue}>{user?.earnings?.total || 0}</Text>
+            <Text style={styles.statValue}>{dashboardData.totalEarnings}</Text>
           </View>
         </View>
 
@@ -217,11 +136,11 @@ export default function DeliveryDashboard({ navigation }) {
           <View style={styles.summaryCard}>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Today's Pickups:</Text>
-              <Text style={styles.summaryValue}>{dashboardData?.todayPickups || 0}</Text>
+              <Text style={styles.summaryValue}>{dashboardData.todayPickups}</Text>
             </View>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>Today's Earnings:</Text>
-              <Text style={styles.summaryValue}>₹{dashboardData?.todayEarnings || 0}</Text>
+              <Text style={styles.summaryValue}>₹{dashboardData.todayEarnings}</Text>
             </View>
           </View>
         </View>
@@ -231,24 +150,55 @@ export default function DeliveryDashboard({ navigation }) {
           <Text style={styles.sectionTitle}>Performance</Text>
           <View style={styles.performanceCard}>
             <View style={styles.ratingContainer}>
-              <Text style={styles.ratingValue}>{user?.rating?.average?.toFixed(1) || '0.0'}</Text>
+              <Text style={styles.ratingValue}>{dashboardData.rating.average}</Text>
               <Text style={styles.starIcon}>⭐</Text>
             </View>
             <Text style={styles.ratingLabel}>Average Rating</Text>
             <Text style={styles.ratingSubtext}>
-              Based on {user?.rating?.total || 0} customer reviews
+              Based on {dashboardData.rating.total} customer reviews
             </Text>
           </View>
         </View>
 
+        {/* Active Notifications */}
+        {notifications.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Active Notifications</Text>
+            {notifications.map((notification, index) => (
+              <View key={index} style={styles.notificationCard}>
+                <Text style={styles.notificationIcon}>🔔</Text>
+                <View style={styles.notificationContent}>
+                  <Text style={styles.notificationTitle}>{notification.title}</Text>
+                  <Text style={styles.notificationMessage}>{notification.message}</Text>
+                  <Text style={styles.notificationEarnings}>Earnings: {notification.earnings}</Text>
+                  <View style={styles.notificationActions}>
+                    <TouchableOpacity
+                      style={styles.rejectButton}
+                      onPress={() => handleNotificationReject(notification)}
+                    >
+                      <Text style={styles.rejectButtonText}>Reject</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.acceptButton}
+                      onPress={() => handleNotificationAccept(notification)}
+                    >
+                      <Text style={styles.acceptButtonText}>Accept</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            ))}
+          </View>
+        )}
+
         {/* Notification Status */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notifications</Text>
+          <Text style={styles.sectionTitle}>Status</Text>
           <View style={styles.notificationCard}>
             <Text style={styles.notificationIcon}>🔔</Text>
             <Text style={styles.notificationText}>
               {isOnline
-                ? 'You will receive real-time notifications for new pickup requests'
+                ? 'You will receive notifications for new pickup requests'
                 : 'Go online to receive pickup notifications'
               }
             </Text>
@@ -263,8 +213,6 @@ export default function DeliveryDashboard({ navigation }) {
           </TouchableOpacity>
         </View>
       </View>
-
-
     </ScrollView>
   );
 }
@@ -528,6 +476,53 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+  },
+  notificationContent: {
+    flex: 1,
+  },
+  notificationTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  notificationMessage: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  notificationEarnings: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4CAF50',
+    marginBottom: 8,
+  },
+  notificationActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+  },
+  rejectButton: {
+    backgroundColor: '#f44336',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+  },
+  rejectButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  acceptButton: {
+    backgroundColor: '#4CAF50',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 4,
+  },
+  acceptButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
 

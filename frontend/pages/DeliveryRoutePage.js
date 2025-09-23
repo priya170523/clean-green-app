@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { getDirections, getFallbackDirections } from '../services/mapsService';
-import { pickupAPI } from '../services/apiService';
+import { dummyNotifications } from '../services/dummyData';
 
 export default function DeliveryRoutePage({ navigation, route }) {
   const { pickupData } = route.params || {};
@@ -105,47 +105,31 @@ export default function DeliveryRoutePage({ navigation, route }) {
     });
   };
 
-  const handleReached = async () => {
-    try {
-      await pickupAPI.updatePickupStatus(
-        pickupData?._id,
-        'in_progress',
-        currentLocation,
-        'Agent reached pickup location'
-      );
-      setPickupStatus('reached');
-      setShowPickedButton(true);
-      setShowReachedButton(false);
-      Alert.alert('Status Updated', 'You have reached the pickup location!');
-    } catch (error) {
-      console.error('Update status error:', error);
-      Alert.alert('Error', 'Failed to update status');
-    }
+  const handleReached = () => {
+    // Simulate local status update without backend call
+    setPickupStatus('reached');
+    setShowPickedButton(true);
+    setShowReachedButton(false);
+    Alert.alert('Status Updated', 'You have reached the pickup location!');
   };
 
-  const handlePicked = async () => {
-    try {
-      await pickupAPI.updatePickupStatus(
-        pickupData?._id,
-        'in_progress',
-        currentLocation,
-        'Waste picked up, proceeding to warehouse'
-      );
-      setPickupStatus('picked');
-      Alert.alert('Pickup Updated', 'Proceeding to warehouse for submission.');
+  const handlePicked = () => {
+    // Simulate local status update without backend call
+    setPickupStatus('picked');
+    Alert.alert('Pickup Updated', 'Proceeding to warehouse for submission.');
 
-      // Navigate to warehouse navigation
-      navigation.navigate('WarehouseNavigation', {
-        pickupData: {
-          ...pickupData,
-          _id: pickupData._id,
-          distance: routeInfo?.distance || 0
-        }
-      });
-    } catch (error) {
-      console.error('Update status error:', error);
-      Alert.alert('Error', 'Failed to update status');
-    }
+    // Navigate to warehouse navigation with dummy data
+    navigation.navigate('WarehouseNavigation', {
+      pickupData: {
+        ...pickupData,
+        _id: pickupData._id,
+        distance: routeInfo?.distance ?
+          (typeof routeInfo.distance === 'string' ?
+            parseFloat(routeInfo.distance.replace(' km', '')) :
+            routeInfo.distance
+          ) : 0
+      }
+    });
   };
 
   const handleSupport = () => {
@@ -270,11 +254,18 @@ export default function DeliveryRoutePage({ navigation, route }) {
           <Text style={styles.routeInfoTitle}>Route Information</Text>
           <View style={styles.routeInfoRow}>
             <Text style={styles.routeInfoLabel}>Distance:</Text>
-            <Text style={styles.routeInfoValue}>{routeInfo.distance.toFixed(2)} km</Text>
+            <Text style={styles.routeInfoValue}>
+              {routeInfo.distance ?
+                (typeof routeInfo.distance === 'string' ?
+                  parseFloat(routeInfo.distance.replace(' km', '')).toFixed(2) :
+                  routeInfo.distance.toFixed(2)
+                ) : '0.00'
+              } km
+            </Text>
           </View>
           <View style={styles.routeInfoRow}>
             <Text style={styles.routeInfoLabel}>Estimated Time:</Text>
-            <Text style={styles.routeInfoValue}>{Math.round(routeInfo.duration)} minutes</Text>
+            <Text style={styles.routeInfoValue}>{routeInfo.duration ? Math.round(routeInfo.duration) : 0} minutes</Text>
           </View>
           <View style={styles.routeInfoRow}>
             <Text style={styles.routeInfoLabel}>Potential Earnings:</Text>
