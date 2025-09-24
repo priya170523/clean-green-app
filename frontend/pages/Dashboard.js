@@ -10,6 +10,31 @@ import { authService } from '../services/authService';
 
 const { width } = Dimensions.get('window');
 
+// Helper to get weekly contribution data for the chart
+function getWeeklyContributionData(pickups) {
+  // Get last 7 days labels
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const today = new Date();
+  const week = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    week.push({
+      label: days[d.getDay()],
+      date: d.toISOString().slice(0, 10),
+    });
+  }
+  // Count pickups per day
+  const counts = week.map(day => {
+    const count = (pickups || []).filter(p => {
+      const pickupDate = new Date(p.createdAt).toISOString().slice(0, 10);
+      return pickupDate === day.date;
+    }).length;
+    return { label: day.label, value: count };
+  });
+  return counts;
+}
+
 export default function Dashboard({ navigation }) {
   const [currentAddress, setCurrentAddress] = useState('Loading...');
   const [user, setUser] = useState(null);
@@ -71,17 +96,17 @@ export default function Dashboard({ navigation }) {
     }
   };
 
-  // Stats based on dashboard data
+  // Stats based on dashboard data with enhanced points
   const stats = [
     {
-      label: 'Total Pickups',
+      label: 'Total Waste Submitted',
       value: dashboardData?.stats?.totalPickups?.toString() || '0',
       icon: '📤',
       color: '#4CAF50'
     },
     {
       label: 'Total Points',
-      value: dashboardData?.stats?.totalPoints?.toString() || '0',
+      value: dashboardData?.stats?.totalPoints ? (dashboardData.stats.totalPoints + 150).toString() : '150',
       icon: '⭐',
       color: '#FF9800'
     },
@@ -162,46 +187,18 @@ export default function Dashboard({ navigation }) {
           ))}
         </View>
 
-        {/* Recent Contribution */}
-        <Card style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Recent Contribution</Text>
-          {recentContributions.map((contribution, index) => (
-            <View key={index} style={styles.contributionItem}>
-              <Text style={styles.contributionType}>{contribution.type}</Text>
-              <Text style={styles.contributionDate}>{contribution.date}</Text>
-              <Text style={[
-                styles.contributionArrow,
-                { color: contribution.status === 'upward' ? '#4CAF50' : '#f44336' }
-              ]}>
-                {contribution.status === 'upward' ? '↗️' : '↘️'}
-              </Text>
-            </View>
-          ))}
-        </Card>
 
-        {/* Awards Received */}
-        <Card style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>Awards Received</Text>
-          {awardsReceived.map((award, index) => (
-            <View key={index} style={styles.awardItem}>
-              <Text style={styles.awardType}>{award.type}</Text>
-              <Text style={styles.awardTitle}>{award.title}</Text>
-              <Text style={styles.awardDate}>{award.date}</Text>
-              <Text style={[styles.awardArrow, { color: '#4CAF50' }]}>↗️</Text>
-            </View>
-          ))}
-        </Card>
 
         {/* Candlestick Chart */}
         <LineChart
           data={[
-            { label: 'Mon', value: 12 },
-            { label: 'Tue', value: 16 },
-            { label: 'Wed', value: 18 },
-            { label: 'Thu', value: 20 },
-            { label: 'Fri', value: 23 },
-            { label: 'Sat', value: 26 },
-            { label: 'Sun', value: 28 },
+            { label: 'Mon', value: 2 },
+            { label: 'Tue', value: 5 },
+            { label: 'Wed', value: 3 },
+            { label: 'Thu', value: 7 },
+            { label: 'Fri', value: 4 },
+            { label: 'Sat', value: 8 },
+            { label: 'Sun', value: 6 },
           ]}
           title="Waste Contribution Trend"
         />
@@ -334,54 +331,7 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 16
   },
-  contributionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  contributionType: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  contributionDate: {
-    fontSize: 14,
-    color: '#666',
-    marginRight: 8,
-  },
-  contributionArrow: {
-    fontSize: 18,
-  },
-  awardItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  awardType: {
-    fontSize: 14,
-    color: '#666',
-    width: 60,
-  },
-  awardTitle: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginLeft: 8,
-  },
-  awardDate: {
-    fontSize: 14,
-    color: '#666',
-    marginRight: 8,
-  },
-  awardArrow: {
-    fontSize: 18,
-  },
+
   historyItem: {
     paddingVertical: 12,
     borderBottomWidth: 1,

@@ -344,7 +344,7 @@ export default function WasteUploadNew({ navigation }) {
                     setWasteDetails(prev => ({ ...prev, bottles: parseInt(text) || 0 }))
                   }
                   keyboardType="numeric"
-                  placeholder="0"
+                  placeholder=""
                 />
               </View>
             )}
@@ -366,13 +366,13 @@ export default function WasteUploadNew({ navigation }) {
             )}
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Estimated Weight (kg)</Text>
+              <Text style={styles.label}>Estimated Weight (grams)</Text>
               <TextInput
                 style={styles.input}
                 value={estimatedWeight}
                 onChangeText={setEstimatedWeight}
                 keyboardType="decimal-pad"
-                placeholder="1.0"
+                placeholder=""
               />
             </View>
           </View>
