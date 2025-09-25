@@ -1,44 +1,24 @@
-# Task: Remove Dummy Data and Integrate Backend for Delivery System
+# Task: Modify API calls for delivery notifications and fix login page reload
 
 ## Information Gathered:
-- **Dummy Data:** `frontend/services/dummyData.js` contains `dummyDeliveryAgents` and other fake data used in `DeliveryDashboard.js`
-- **Backend Integration:** `frontend/services/apiService.js` has API endpoints for pickups, deliveries, and notifications
-- **Notifications:** `frontend/services/notificationService.js` handles socket.io for real-time notifications
-- **Routing:** `frontend/services/mapsService.js` provides road-based routing using OSRM
-- **Admin Approval:** Backend `backend/routes/pickups.js` emits 'pickup-admin-approved' events via socket.io
+- DeliveryDashboard.js fetches available pickups on online toggle and listens for 'pickup-admin-approved' socket events for 'awaiting_agent' notifications. Need periodic polling to ensure notifications.
+- Login.js switchRole shows splash and clears data, but lacks page reload. Need to add DevSettings.reload().
+- apiService.js provides pickupAPI.getAvailablePickups().
 
 ## Plan:
-1. **Remove Dummy Data for Delivery Agents**
-   - Remove `dummyDeliveryAgents` from `frontend/services/dummyData.js`
-   - Update any references to use real backend data
+1. **Update DeliveryDashboard.js for periodic polling** ✅
+   - Added pollingIntervalRef useRef.
+   - Added useEffect with setInterval to poll pickupAPI.getAvailablePickups() every 30 seconds when isOnline.
+   - For new 'awaiting_agent' pickups, create notifications and show Alerts.
 
-2. **Integrate Backend Connections on Delivery Page**
-   - Update `frontend/pages/DeliveryDashboard.js` to fetch real pickup data from backend
-   - Replace dummy notifications with real socket.io notifications
-   - Use `apiService.js` for API calls and `notificationService.js` for real-time updates
-
-3. **Enable Notifications for Admin Approval**
-   - Ensure socket.io listeners are set up for 'pickup-admin-approved' events
-   - Update notification handling to show real admin approval notifications
-
-4. **Handle Subsequent Operations**
-   - Update `frontend/pages/DeliveryRoutePage.js` to use backend for status updates
-   - Integrate with `apiService.js` for real pickup status management
-   - Ensure accurate road-based routing continues to work
-
-5. **Review and Analyze Code**
-   - Review all modified files for errors and best practices
-   - Test functionality to ensure proper backend integration
+2. **Update Login.js for page reload** ✅
+   - Imported DevSettings from 'react-native'.
+   - In switchRole, after clearing data, called DevSettings.reload().
 
 ## Dependent Files to be Edited:
-- `frontend/services/dummyData.js`
-- `frontend/pages/DeliveryDashboard.js`
-- `frontend/pages/DeliveryRoutePage.js`
-- `frontend/services/notificationService.js` (if needed)
-- `frontend/services/apiService.js` (if needed)
+- frontend/pages/DeliveryDashboard.js
+- frontend/pages/Login.js
 
 ## Followup Steps:
-- Test backend connections
-- Verify notification system
-- Test routing functionality
-- Check for any errors or exceptions
+- Test periodic polling in DeliveryDashboard for notifications.
+- Test role switch in Login for splash, data clearing, and reload.

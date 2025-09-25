@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { deliveryAPI, pickupAPI } from '../services/apiService';
 import { notificationService } from '../services/notificationService';
@@ -16,6 +16,8 @@ export default function DeliveryDashboard({ navigation }) {
   });
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [acceptingPickup, setAcceptingPickup] = useState(false);
+  const pollingIntervalRef = useRef(null);
 
   useEffect(() => {
     // Get current user and initialize notification socket
@@ -27,49 +29,37 @@ export default function DeliveryDashboard({ navigation }) {
       } else {
         notificationService.init(); // fallback
       }
-      // Setup notification listeners after socket is initialized
-      notificationService.onNewPickupAvailable((data) => {
-        if (isOnline) {
-          const notification = {
-            id: data.pickup._id,
-            type: 'pickup_request',
-            title: 'New Pickup Request',
-            message: `Pickup available ${data.message}`,
-            pickupData: data.pickup,
-            earnings: `₹${data.pickup.earnings || '50-150'}`
-          };
-          setNotifications(prev => [...prev, notification]);
-          Alert.alert(
-            notification.title,
-            notification.message,
-            [
-              { text: 'Reject', style: 'cancel', onPress: () => handleNotificationReject(notification) },
-              { text: 'Accept', onPress: () => handleNotificationAccept(notification) }
-            ]
-          );
-        }
-      });
-      notificationService.onPickupRequest((data) => {
-        if (isOnline) {
-          const notification = {
-            id: data.pickup._id,
-            type: 'pickup_request',
-            title: 'Pickup Request',
-            message: `Pickup request: ${data.message}`,
-            pickupData: data.pickup,
-            earnings: `₹${data.pickup.earnings || '50-150'}`
-          };
-          setNotifications(prev => [...prev, notification]);
-          Alert.alert(
-            notification.title,
-            notification.message,
-            [
-              { text: 'Reject', style: 'cancel', onPress: () => handleNotificationReject(notification) },
-              { text: 'Accept', onPress: () => handleNotificationAccept(notification) }
-            ]
-          );
-        }
-      });
+      // Fetch available pickups with status 'awaiting_agent' and notify
+          if (isOnline) {
+            try {
+              const available = await deliveryAPI.getAvailablePickups();
+              const awaitingPickups = (available.data?.pickups || []).filter(p => p.status === 'awaiting_agent');
+              awaitingPickups.forEach(pickup => {
+                const notification = {
+                  id: pickup._id,
+                  type: 'pickup_request',
+                  title: 'New Pickup Request',
+                  message: `Pickup available for ${pickup.wasteType || 'waste'}`,
+                  pickupData: pickup,
+                  earnings: `₹${pickup.earnings || '50-150'}`
+                };
+                setNotifications(prev => {
+                  if (prev.find(n => n.id === pickup._id)) return prev;
+                  return [...prev, notification];
+                });
+                Alert.alert(
+                  notification.title,
+                  notification.message,
+                  [
+                    { text: 'Reject', style: 'cancel', onPress: () => handleNotificationReject(notification) },
+                    { text: 'Accept', onPress: () => handleNotificationAccept(notification) }
+                  ]
+                );
+              });
+            } catch (e) {
+              console.warn('Error fetching available pickups:', e);
+            }
+          }
       // Listen for agent status updates
       if (notificationService.getSocket()) {
         notificationService.getSocket().on('agent-status-update', (data) => {
@@ -79,11 +69,83 @@ export default function DeliveryDashboard({ navigation }) {
       // Listen for pickup-admin-approved
       if (notificationService.getSocket()) {
         notificationService.getSocket().on('pickup-admin-approved', (data) => {
-          Alert.alert('Pickup Approved', 'A pickup request has been approved and is now available');
+          // Only notify if status is awaiting_agent
+          if (data && data.pickup && data.pickup.status === 'awaiting_agent') {
+            const notification = {
+              id: data.pickup._id,
+              type: 'pickup_request',
+              title: 'Pickup Approved',
+              message: 'A pickup request has been approved and is now available',
+              pickupData: data.pickup,
+              earnings: `₹${data.pickup.earnings || '20-50'}`
+            };
+            setNotifications(prev => {
+              if (prev.find(n => n.id === data.pickup._id)) return prev;
+              return [...prev, notification];
+            });
+            Alert.alert(
+              notification.title,
+              notification.message,
+              [
+                { text: 'Reject', style: 'cancel', onPress: () => handleNotificationReject(notification) },
+                { text: 'Accept', onPress: () => handleNotificationAccept(notification) }
+              ]
+            );
+          }
         });
       }
     })();
     loadDashboardData();
+  }, [isOnline]);
+
+  // Periodic polling for available pickups when online
+  useEffect(() => {
+      if (isOnline) {
+        const pollAvailablePickups = async () => {
+          try {
+            const available = await deliveryAPI.getAvailablePickups();
+            const awaitingPickups = (available.data?.pickups || []).filter(p => p.status === 'awaiting_agent');
+            awaitingPickups.forEach(pickup => {
+              setNotifications(prev => {
+                if (prev.find(n => n.id === pickup._id)) return prev;
+                const notification = {
+                  id: pickup._id,
+                  type: 'pickup_request',
+                  title: 'New Pickup Request',
+                  message: `Pickup available for ${pickup.wasteType || 'waste'}`,
+                  pickupData: pickup,
+                  earnings: `₹${pickup.earnings || '50-150'}`
+                };
+                Alert.alert(
+                  notification.title,
+                  notification.message,
+                  [
+                    { text: 'Reject', style: 'cancel', onPress: () => handleNotificationReject(notification) },
+                    { text: 'Accept', onPress: () => handleNotificationAccept(notification) }
+                  ]
+                );
+                return [...prev, notification];
+              });
+            });
+          } catch (e) {
+            console.warn('Error polling available pickups:', e);
+          }
+        };
+
+      pollingIntervalRef.current = setInterval(pollAvailablePickups, 30000); // Poll every 30 seconds
+    } else {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+    };
   }, [isOnline]);
 
   const loadDashboardData = async () => {
@@ -139,30 +201,79 @@ export default function DeliveryDashboard({ navigation }) {
 
   // Get agent's current location and pass to route page
   const handleNotificationAccept = async (notification) => {
+    if (acceptingPickup) {
+      console.log('Already processing a pickup acceptance');
+      return;
+    }
+    setAcceptingPickup(true);
+
     try {
+      console.log('Starting pickup acceptance for ID:', notification?.pickupData?._id);
+
+      // Validate pickup data first
+      if (!notification?.pickupData?._id) {
+        throw new Error('Invalid pickup data');
+      }
+
       // Get current location
       let location = null;
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
+          console.log('Location permission granted, getting current position');
           const loc = await Location.getCurrentPositionAsync({});
           location = {
             latitude: loc.coords.latitude,
             longitude: loc.coords.longitude,
           };
+          console.log('Got current location:', location);
         }
       } catch (e) {
         console.warn('Location error:', e);
       }
+
+      // Accept the pickup first
+      console.log('Accepting pickup with API...');
       await pickupAPI.acceptPickup(notification.pickupData._id);
-      setNotifications(prev => prev.filter(n => n.id !== notification.id));
-      navigation.navigate('DeliveryRoutePage', {
+      console.log('Pickup accepted successfully');
+
+      // Clear notifications and polling
+      setNotifications([]);
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+
+      // Navigation
+      console.log('Preparing navigation to DeliveryRoutePage');
+      const navigationParams = {
         pickupData: notification.pickupData,
         agentLocation: location
+      };
+      console.log('Navigation params:', navigationParams);
+
+      // Handle navigation
+      if (!navigation?.navigate) {
+        throw new Error('Navigation is not available');
+      }
+
+      navigation.reset({
+        index: 0,
+        routes: [{
+          name: 'DeliveryRoutePage',
+          params: navigationParams
+        }],
       });
+
+      console.log('Navigation completed successfully');
     } catch (error) {
-      console.error('Error accepting pickup:', error);
-      Alert.alert('Error', 'Failed to accept pickup');
+      console.error('Error in handleNotificationAccept:', error);
+      Alert.alert(
+        'Error',
+        error.message || 'Failed to accept pickup. Please try again.'
+      );
+    } finally {
+      setAcceptingPickup(false);
     }
   };
 

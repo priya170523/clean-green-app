@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Animated } from 'react-native';
+import { DevSettings } from 'react-native';
 import InputField from '../components/InputField';
 import Button from '../components/Button';
 import { authService } from '../services/authService';
@@ -17,6 +18,7 @@ export default function Login({ navigation }) {
   });
   const [loading, setLoading] = useState(false);
   const [switchAnim] = useState(new Animated.Value(0));
+  const [showSplash, setShowSplash] = useState(false);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -92,19 +94,34 @@ export default function Login({ navigation }) {
 
   const switchRole = (newRole) => {
     if (newRole === role) return;
-    // Animate icons to center, then to left/right
-    Animated.sequence([
-      Animated.timing(switchAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
-      Animated.timing(switchAnim, { toValue: 0, duration: 200, useNativeDriver: true })
-    ]).start(() => {
-      setRole(newRole);
-      setTab('login');
-      setFormData({ email: '', password: '', name: '', phone: '' });
-    });
+    setShowSplash(true);
+    setTimeout(() => {
+      Animated.sequence([
+        Animated.timing(switchAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.timing(switchAnim, { toValue: 0, duration: 200, useNativeDriver: true })
+      ]).start(() => {
+        setRole(newRole);
+        setTab('login');
+        setFormData({ email: '', password: '', name: '', phone: '' });
+        DevSettings.reload();
+        setShowSplash(false);
+      });
+    }, 350); // Splash duration
   };
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
+      {showSplash && (
+        <View style={{
+          ...StyleSheet.absoluteFillObject,
+          backgroundColor: '#4CAF50',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10
+        }}>
+          <Text style={{ color: '#fff', fontSize: 32, fontWeight: 'bold' }}>CleanGreen</Text>
+        </View>
+      )}
       {/* Header */}
       <LinearGradient colors={['#4CAF50', '#2E7D32']} style={styles.header}>
         <View style={styles.logoContainer}>
@@ -160,6 +177,7 @@ export default function Login({ navigation }) {
         </View>
 
         {/* Login Form */}
+        {!showSplash && (
         <Animated.View style={[styles.formContainer, {
           opacity: switchAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.5] }),
           transform: [{ scale: switchAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.98] }) }]
@@ -254,6 +272,7 @@ export default function Login({ navigation }) {
             </TouchableOpacity>
           </View>
         </Animated.View>
+        )}
       </View>
     </KeyboardAvoidingView>
   );
