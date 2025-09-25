@@ -30,12 +30,8 @@ export default function Pending() {
   }, []);
 
   const approve = async (id) => {
-    try {
-      await pickupApi.approve(id);
-      await load();
-    } catch (e) {
-      setError(e.response?.data?.message || 'Approve failed');
-    }
+    await pickupApi.approve(id);
+    await load();
   };
   const reject = async (id) => {
     const reason = prompt('Reason for rejection?') || 'Not suitable';
@@ -58,7 +54,7 @@ export default function Pending() {
           {items.map((p) => (
             <div key={p._id} style={{ background: '#fff', padding: 16, borderRadius: 12, boxShadow: '0 6px 18px rgba(0,0,0,0.06)' }}>
               <div style={{ fontWeight: 700 }}>{p.user?.name} • {p.wasteType}</div>
-              <div style={{ color: '#475569', fontSize: 14 }}>Weight: {p.estimatedWeight} grams</div>
+              <div style={{ color: '#475569', fontSize: 14 }}>Weight: {p.estimatedWeight} kg</div>
               <div style={{ color: '#475569', fontSize: 14 }}>Address: {p.address?.fullAddress}</div>
               {Array.isArray(p.images) && p.images.length > 0 && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 12 }}>

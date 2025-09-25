@@ -92,13 +92,15 @@ export default function Login({ navigation }) {
 
   const switchRole = (newRole) => {
     if (newRole === role) return;
+    // Animate icons to center, then to left/right
     Animated.sequence([
       Animated.timing(switchAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
       Animated.timing(switchAnim, { toValue: 0, duration: 200, useNativeDriver: true })
-    ]).start();
-    setRole(newRole);
-    setTab('login');
-    setFormData({ email: '', password: '', name: '', phone: '' });
+    ]).start(() => {
+      setRole(newRole);
+      setTab('login');
+      setFormData({ email: '', password: '', name: '', phone: '' });
+    });
   };
 
   return (
@@ -121,13 +123,39 @@ export default function Login({ navigation }) {
             style={[styles.roleTab, role === 'user' && styles.activeRoleTab]}
             onPress={() => switchRole('user')}
           >
-            <Text style={[styles.roleTabText, role === 'user' && styles.activeRoleTabText]}>User</Text>
+            <Animated.View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transform: [
+                { translateX: switchAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [role === 'user' ? 0 : 50, 0]
+                  }) }
+              ]
+            }}>
+              <Text style={{ fontSize: 24, marginRight: 8 }}>👤</Text>
+              <Text style={[styles.roleTabText, role === 'user' && styles.activeRoleTabText]}>User</Text>
+            </Animated.View>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.roleTab, role === 'delivery' && styles.activeRoleTab]}
             onPress={() => switchRole('delivery')}
           >
-            <Text style={[styles.roleTabText, role === 'delivery' && styles.activeRoleTabText]}>Delivery Agent</Text>
+            <Animated.View style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transform: [
+                { translateX: switchAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [role === 'delivery' ? 0 : -50, 0]
+                  }) }
+              ]
+            }}>
+              <Text style={{ fontSize: 24, marginRight: 8 }}>🚚</Text>
+              <Text style={[styles.roleTabText, role === 'delivery' && styles.activeRoleTabText]}>Delivery Agent</Text>
+            </Animated.View>
           </TouchableOpacity>
         </View>
 

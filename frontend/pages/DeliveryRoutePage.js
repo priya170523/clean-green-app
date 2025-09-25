@@ -12,6 +12,7 @@ import {
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { getDirections, getFallbackDirections } from '../services/mapsService';
 import { dummyNotifications } from '../services/dummyData';
+import { pickupAPI } from '../services/apiService';
 
 export default function DeliveryRoutePage({ navigation, route }) {
   const { pickupData } = route.params || {};
@@ -105,31 +106,43 @@ export default function DeliveryRoutePage({ navigation, route }) {
     });
   };
 
-  const handleReached = () => {
-    // Simulate local status update without backend call
-    setPickupStatus('reached');
-    setShowPickedButton(true);
-    setShowReachedButton(false);
-    Alert.alert('Status Updated', 'You have reached the pickup location!');
+  const handleReached = async () => {
+    try {
+      await pickupAPI.updatePickupStatus(pickupData._id, 'in_progress', null, 'Reached pickup location');
+      setPickupStatus('reached');
+      setShowPickedButton(true);
+      setShowReachedButton(false);
+      Alert.alert('Status Updated', 'You have reached the pickup location!');
+    } catch (error) {
+      console.error('Error updating status:', error);
+      Alert.alert('Error', 'Failed to update status');
+    }
   };
 
-  const handlePicked = () => {
-    // Simulate local status update without backend call
-    setPickupStatus('picked');
-    Alert.alert('Pickup Updated', 'Proceeding to warehouse for submission.');
+  const handlePicked = async () => {
+    try {
+      const distance = routeInfo?.distance ?
+        (typeof routeInfo.distance === 'string' ?
+          parseFloat(routeInfo.distance.replace(' km', '')) :
+          routeInfo.distance
+        ) : 0;
 
-    // Navigate to warehouse navigation with dummy data
-    navigation.navigate('WarehouseNavigation', {
-      pickupData: {
-        ...pickupData,
-        _id: pickupData._id,
-        distance: routeInfo?.distance ?
-          (typeof routeInfo.distance === 'string' ?
-            parseFloat(routeInfo.distance.replace(' km', '')) :
-            routeInfo.distance
-          ) : 0
-      }
-    });
+      await pickupAPI.updatePickupStatus(pickupData._id, 'completed', null, 'Pickup completed', distance);
+      setPickupStatus('picked');
+      Alert.alert('Pickup Updated', 'Proceeding to warehouse for submission.');
+
+      // Navigate to warehouse navigation with updated data
+      navigation.navigate('WarehouseNavigation', {
+        pickupData: {
+          ...pickupData,
+          _id: pickupData._id,
+          distance: distance
+        }
+      });
+    } catch (error) {
+      console.error('Error updating pickup status:', error);
+      Alert.alert('Error', 'Failed to update pickup status');
+    }
   };
 
   const handleSupport = () => {

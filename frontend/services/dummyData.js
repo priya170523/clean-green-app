@@ -50,48 +50,7 @@ export const dummyCoupons = [
 { id: 'c3', userId: 'u2', partner: 'Zomato', code: 'ZOMATO10FREE', expiry: '2025-10-15', redeemed: true }
 ];
 
-// Dummy delivery agents
-export const dummyDeliveryAgents = [
-  {
-    id: 'da1',
-    name: 'Rajesh Kumar',
-    phone: '9876543210',
-    rating: 4.8,
-    totalDeliveries: 1250,
-    vehicle: 'Tata Ace',
-    vehicleNumber: 'KA05AB1234',
-    currentLocation: {
-      latitude: 12.9716,
-      longitude: 77.5946
-    }
-  },
-  {
-    id: 'da2',
-    name: 'Suresh Reddy',
-    phone: '9123456789',
-    rating: 4.6,
-    totalDeliveries: 890,
-    vehicle: 'Mahindra Pickup',
-    vehicleNumber: 'KA05CD5678',
-    currentLocation: {
-      latitude: 12.9352,
-      longitude: 77.6245
-    }
-  },
-  {
-    id: 'da3',
-    name: 'Amit Sharma',
-    phone: '9988776655',
-    rating: 4.9,
-    totalDeliveries: 2100,
-    vehicle: 'Piaggio Ape',
-    vehicleNumber: 'KA05EF9012',
-    currentLocation: {
-      latitude: 12.9770,
-      longitude: 77.6033
-    }
-  }
-];
+
 
 // Dummy pickup locations and customer data
 export const dummyPickupLocations = [

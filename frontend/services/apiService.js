@@ -3,7 +3,7 @@ import axios from 'axios';
 
 // Base URL for the API
 // Use your computer's IP address instead of localhost for device testing
-const BASE_URL = 'http://10.227.209.241:5000/api';
+const BASE_URL = 'http://192.168.29.138:5000/api';
 
 // Create axios instance
 const api = axios.create({
@@ -309,6 +309,12 @@ export const deliveryAPI = {
       status,
       location
     });
+    return response.data;
+  },
+
+  // Submit waste to warehouse
+  submitWaste: async (submissionData) => {
+    const response = await api.post('/deliveries/submit-waste', submissionData);
     return response.data;
   },
 };

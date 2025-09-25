@@ -7,12 +7,27 @@ export default function DeliveryLogin({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
-  const handleLogin = () => {
-    // Simple validation - in real app, this would be proper authentication
-    if (email === 'delivery@cleangreen.com' && password === 'delivery123') {
-      navigation.replace('DeliveryMain');
-    } else {
-      alert('Invalid delivery credentials');
+  const handleLogin = async () => {
+    if (!email || !password) {
+      alert('Please enter both username and password');
+      return;
+    }
+    try {
+      // Replace with real backend authentication
+      // const result = await authService.login(email, password);
+      // if (result.success) {
+      //   navigation.replace('DeliveryMain');
+      // } else {
+      //   alert(result.message || 'Login failed');
+      // }
+      // Demo fallback:
+      if (email === 'delivery@cleangreen.com' && password === 'delivery123') {
+        navigation.replace('DeliveryMain');
+      } else {
+        alert('Invalid delivery credentials');
+      }
+    } catch (error) {
+      alert('Login error. Please try again.');
     }
   };
 

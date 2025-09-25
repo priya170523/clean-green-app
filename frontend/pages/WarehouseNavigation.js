@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
+import * as Location from 'expo-location';
 import { getDirections, getFallbackDirections } from '../services/mapsService';
+import { deliveryAPI } from '../services/apiService';
 
 export default function WarehouseNavigation({ navigation, route }) {
   const { pickupData } = route.params || {};
-  const [currentLocation, setCurrentLocation] = useState({
-    latitude: 12.9756, // Current pickup location
-    longitude: 77.5996,
-  });
+  const [currentLocation, setCurrentLocation] = useState(null);
   const [warehouseLocation] = useState({
     latitude: 12.9800, // Warehouse location
     longitude: 77.6100,
@@ -20,13 +19,25 @@ export default function WarehouseNavigation({ navigation, route }) {
   const [routeInfo, setRouteInfo] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Calculate route to warehouse
+  // Get current location and calculate route to warehouse
   useEffect(() => {
-    const calculateRoute = async () => {
+    const getCurrentLocationAndRoute = async () => {
       setLoading(true);
       try {
-        const result = await getDirections(currentLocation, warehouseLocation);
-        
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          Alert.alert('Permission Denied', 'Location permission is required to navigate');
+          setLoading(false);
+          return;
+        }
+        const location = await Location.getCurrentPositionAsync({});
+        const currentLoc = {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        };
+        setCurrentLocation(currentLoc);
+
+        const result = await getDirections(currentLoc, warehouseLocation);
         if (result.success) {
           setRouteWaypoints(result.waypoints);
           setRouteInfo({
@@ -35,7 +46,7 @@ export default function WarehouseNavigation({ navigation, route }) {
           });
         } else {
           console.log('Using fallback route calculation for warehouse');
-          const fallbackResult = getFallbackDirections(currentLocation, warehouseLocation);
+          const fallbackResult = getFallbackDirections(currentLoc, warehouseLocation);
           setRouteWaypoints(fallbackResult.waypoints);
           setRouteInfo({
             distance: fallbackResult.distance,
@@ -45,37 +56,64 @@ export default function WarehouseNavigation({ navigation, route }) {
       } catch (error) {
         console.error('Route calculation error:', error);
         console.log('Using fallback route calculation for warehouse');
-        const fallbackResult = getFallbackDirections(currentLocation, warehouseLocation);
-        setRouteWaypoints(fallbackResult.waypoints);
-        setRouteInfo({
-          distance: fallbackResult.distance,
-          duration: fallbackResult.duration,
-        });
+        if (currentLoc) {
+          const fallbackResult = getFallbackDirections(currentLoc, warehouseLocation);
+          setRouteWaypoints(fallbackResult.waypoints);
+          setRouteInfo({
+            distance: fallbackResult.distance,
+            duration: fallbackResult.duration,
+          });
+        }
       } finally {
         setLoading(false);
       }
     };
 
-    calculateRoute();
-  }, [currentLocation, warehouseLocation]);
+    getCurrentLocationAndRoute();
+  }, [warehouseLocation]);
 
-  // Simulate movement along the route
+  // Real-time location tracking as delivery agent moves
   useEffect(() => {
-    if (routeWaypoints.length === 0) return;
-    
-    let currentWaypointIndex = 0;
-    const interval = setInterval(() => {
-      if (currentWaypointIndex < routeWaypoints.length - 1) {
-        currentWaypointIndex++;
-        const newLocation = routeWaypoints[currentWaypointIndex];
-        setCurrentLocation(newLocation);
-      } else {
-        clearInterval(interval);
-      }
-    }, 3000);
+    let locationSubscription = null;
 
-    return () => clearInterval(interval);
-  }, [routeWaypoints]);
+    const startLocationTracking = async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          console.log('Location permission denied');
+          return;
+        }
+
+        // Watch position changes
+        locationSubscription = await Location.watchPositionAsync(
+          {
+            accuracy: Location.Accuracy.High,
+            timeInterval: 5000, // Update every 5 seconds
+            distanceInterval: 10, // Update every 10 meters
+          },
+          (location) => {
+            const newLocation = {
+              latitude: location.coords.latitude,
+              longitude: location.coords.longitude,
+            };
+            setCurrentLocation(newLocation);
+          }
+        );
+      } catch (error) {
+        console.error('Error starting location tracking:', error);
+      }
+    };
+
+    if (currentLocation) {
+      startLocationTracking();
+    }
+
+    return () => {
+      if (locationSubscription) {
+        locationSubscription.remove();
+      }
+    };
+  }, [currentLocation]);
 
   const handleOpenMaps = () => {
     Alert.alert('Open Maps', 'Opening route to warehouse in device maps app...');
@@ -89,10 +127,38 @@ export default function WarehouseNavigation({ navigation, route }) {
     Alert.alert('Status Updated', 'You have reached the warehouse!');
   };
 
-  const handleSubmittedWaste = () => {
-    // Simulate local status update without backend call
-    Alert.alert('Waste Submitted', 'Waste successfully submitted to warehouse!');
-    navigation.navigate('DeliveryMain');
+  const handleSubmittedWaste = async () => {
+    try {
+      // Prepare submission data
+      const submissionData = {
+        pickupId: pickupData._id,
+        wasteType: pickupData.wasteType || 'mixed',
+        weight: pickupData.estimatedWeight || 0,
+        distance: pickupData.distance || 0,
+        images: pickupData.images || [],
+        wasteDetails: pickupData.wasteDetails || {},
+        notes: 'Waste submitted to warehouse'
+      };
+
+      // Submit waste to backend
+      await deliveryAPI.submitWaste(submissionData);
+
+      Alert.alert(
+        'Success',
+        'Waste submitted successfully! Your earnings have been updated.',
+        [
+          {
+            text: 'OK',
+            onPress: () => {
+              navigation.navigate('DeliveryDashboard');
+            }
+          }
+        ]
+      );
+    } catch (error) {
+      console.error('Error submitting waste:', error);
+      Alert.alert('Error', 'Failed to submit waste. Please try again.');
+    }
   };
 
   const handleBack = () => {
@@ -117,6 +183,15 @@ export default function WarehouseNavigation({ navigation, route }) {
     warehouseLocation.latitude, 
     warehouseLocation.longitude
   );
+
+  if (loading || !currentLocation) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Getting your location...</Text>
+        <Text style={styles.loadingSubText}>Please wait while we calculate the route to warehouse</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -157,7 +232,7 @@ export default function WarehouseNavigation({ navigation, route }) {
             description="Current position"
             pinColor="blue"
           />
-          
+
           {/* Warehouse Location Marker */}
           <Marker
             coordinate={warehouseLocation}
@@ -165,7 +240,7 @@ export default function WarehouseNavigation({ navigation, route }) {
             description="Drop-off location"
             pinColor="green"
           />
-          
+
           {/* Route Line */}
           <Polyline
             coordinates={[currentLocation, warehouseLocation]}
@@ -191,10 +266,10 @@ export default function WarehouseNavigation({ navigation, route }) {
         <TouchableOpacity style={styles.actionButton} onPress={handleOpenMaps}>
           <Text style={styles.actionButtonText}>open in Maps</Text>
         </TouchableOpacity>
-        
+
         {showReachedButton && (
-          <TouchableOpacity 
-            style={[styles.actionButton, hasReached && styles.reachedButton]} 
+          <TouchableOpacity
+            style={[styles.actionButton, hasReached && styles.reachedButton]}
             onPress={handleReached}
           >
             <Text style={[styles.actionButtonText, hasReached && styles.reachedButtonText]}>
@@ -395,5 +470,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     marginBottom: 4,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F1F8E9',
+  },
+  loadingText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1B5E20',
+    marginBottom: 8,
+  },
+  loadingSubText: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
   },
 });

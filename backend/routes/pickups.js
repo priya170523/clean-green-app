@@ -1,6 +1,6 @@
 const express = require('express');
 const Pickup = require('../models/Pickup');
-// const Reward = require('../models/Reward');
+const Reward = require('../models/Reward');
 const Transaction = require('../models/Transaction');
 const Address = require('../models/Address');
 const User = require('../models/User');
@@ -54,10 +54,30 @@ router.put('/:id/admin/approve', protect, restrictTo('admin'), async (req, res) 
     pickup.timeline.push({ status: 'admin_approved', timestamp: new Date(), notes: 'Approved by admin' });
     await pickup.save();
 
+    // Generate reward coupon
+    const couponCode = `CLEAN${Math.round(pickup.estimatedWeight * 10)}${Date.now().toString().slice(-5)}`;
+    const weight = pickup.estimatedWeight || 1;
+    const pointsEarned = Math.max(10, Math.round(weight * (pickup.wasteType === 'bottles' ? 15 : pickup.wasteType === 'other' ? 12 : 10)));
+    const reward = await Reward.create({
+      user: pickup.user._id,
+      pickup: pickup._id,
+      type: 'pickup_completion',
+      title: 'Admin-approved pickup',
+      description: `Congrats! Coupon for your ${pickup.wasteType} waste pickup`,
+      couponCode,
+      partner: 'Clean&Green',
+      discount: `${Math.min(70, 10 + Math.round(weight * 2))}% off`,
+      minOrder: '₹0',
+      issuedDate: new Date(),
+      expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      pointsEarned,
+      icon: '🎟️'
+    });
+
     // Notify user and agents (immediate or scheduled)
     if (req.io) {
       // Notify the requesting user
-      req.io.to(`user-${pickup.user._id}`).emit('pickup-admin-approved', { pickup: pickup.toObject() });
+      req.io.to(`user-${pickup.user._id}`).emit('pickup-admin-approved', { pickup: pickup.toObject(), reward: reward.toObject() });
       // For scheduled, queue a delayed broadcast near the scheduled time
       const payload = { pickup: pickup.toObject(), message: 'Admin approved pickup available' };
       const isScheduled = pickup.priority === 'scheduled' && pickup.scheduledDate;
@@ -73,7 +93,7 @@ router.put('/:id/admin/approve', protect, restrictTo('admin'), async (req, res) 
       }
     }
 
-    res.status(200).json({ status: 'success', message: 'Pickup approved', data: { pickup } });
+    res.status(200).json({ status: 'success', message: 'Pickup approved', data: { pickup, reward } });
   } catch (error) {
     console.error('Admin approve error:', error);
     res.status(500).json({ status: 'error', message: 'Failed to approve pickup' });
@@ -357,15 +377,6 @@ router.put('/:id/status', protect, restrictTo('delivery'), async (req, res) => {
         description: `Pickup ${pickup._id} completed`,
         status: 'completed',
         referenceId: `PK${pickup._id}`
-      });
-      // Credit delivery agent wallet
-      const User = require('../models/User');
-      await User.findByIdAndUpdate(req.user._id, {
-        $inc: {
-          'earnings.total': pickup.earnings,
-          'earnings.available': pickup.earnings,
-          completedPickups: 1
-        }
       });
     }
 
