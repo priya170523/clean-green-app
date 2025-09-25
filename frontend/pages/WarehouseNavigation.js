@@ -177,13 +177,6 @@ export default function WarehouseNavigation({ navigation, route }) {
     return R * c;
   };
 
-  const distance = calculateDistance(
-    currentLocation.latitude, 
-    currentLocation.longitude,
-    warehouseLocation.latitude, 
-    warehouseLocation.longitude
-  );
-
   if (loading || !currentLocation) {
     return (
       <View style={styles.loadingContainer}>
@@ -192,6 +185,13 @@ export default function WarehouseNavigation({ navigation, route }) {
       </View>
     );
   }
+
+  const distance = calculateDistance(
+    currentLocation.latitude, 
+    currentLocation.longitude,
+    warehouseLocation.latitude, 
+    warehouseLocation.longitude
+  );
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>

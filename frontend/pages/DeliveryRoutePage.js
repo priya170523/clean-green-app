@@ -1,4 +1,20 @@
 import React, { useState, useEffect } from 'react';
+
+const formatAddress = (address) => {
+  if (!address) return '';
+  if (typeof address === 'string') return address;
+
+  const parts = [];
+  if (address.houseFlatBlock) parts.push(address.houseFlatBlock);
+  if (address.apartmentRoadArea) parts.push(address.apartmentRoadArea);
+  if (address.landmark) parts.push(address.landmark);
+  if (address.city) parts.push(address.city);
+  if (address.state) parts.push(address.state);
+  if (address.pincode) parts.push(address.pincode);
+
+  return parts.join(', ');
+};
+
 import {
   View,
   Text,
@@ -10,6 +26,7 @@ import {
   Platform
 } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import * as Location from 'expo-location';
 import { getDirections, getFallbackDirections } from '../services/mapsService';
 import { dummyNotifications } from '../services/dummyData';
 import { pickupAPI } from '../services/apiService';
@@ -27,6 +44,26 @@ export default function DeliveryRoutePage({ navigation, route }) {
   const [pickupStatus, setPickupStatus] = useState('accepted'); // accepted, reached, picked
   const [showPickedButton, setShowPickedButton] = useState(false);
   const [showReachedButton, setShowReachedButton] = useState(true);
+
+  // Get current location
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const location = await Location.getCurrentPositionAsync({});
+          setCurrentLocation({
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+          });
+        } else {
+          console.warn('Location permission denied');
+        }
+      } catch (error) {
+        console.error('Error getting current location:', error);
+      }
+    })();
+  }, []);
 
   // Initialize pickup location from pickup data
   useEffect(() => {
@@ -298,7 +335,7 @@ export default function DeliveryRoutePage({ navigation, route }) {
             {pickupData.user?.phone || pickupData.customerPhone || 'Phone not available'}
           </Text>
           <Text style={styles.customerAddress}>
-            {pickupData.address?.formattedAddress || pickupData.address || 'Address not available'}
+            {pickupData.address?.formattedAddress || formatAddress(pickupData.address) || 'Address not available'}
           </Text>
         </View>
 

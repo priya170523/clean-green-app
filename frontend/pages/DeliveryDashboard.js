@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { deliveryAPI, pickupAPI } from '../services/apiService';
 import { notificationService } from '../services/notificationService';
-import authService from '../services/authService';
+import { authService } from '../services/authService';
 import * as Location from 'expo-location';
 
 export default function DeliveryDashboard({ navigation }) {
@@ -34,28 +34,30 @@ export default function DeliveryDashboard({ navigation }) {
             try {
               const available = await deliveryAPI.getAvailablePickups();
               const awaitingPickups = (available.data?.pickups || []).filter(p => p.status === 'awaiting_agent');
-              awaitingPickups.forEach(pickup => {
-                const notification = {
-                  id: pickup._id,
-                  type: 'pickup_request',
-                  title: 'New Pickup Request',
-                  message: `Pickup available for ${pickup.wasteType || 'waste'}`,
-                  pickupData: pickup,
-                  earnings: `₹${pickup.earnings || '50-150'}`
-                };
-                setNotifications(prev => {
-                  if (prev.find(n => n.id === pickup._id)) return prev;
-                  return [...prev, notification];
-                });
-                Alert.alert(
-                  notification.title,
-                  notification.message,
-                  [
-                    { text: 'Reject', style: 'cancel', onPress: () => handleNotificationReject(notification) },
-                    { text: 'Accept', onPress: () => handleNotificationAccept(notification) }
-                  ]
-                );
+            awaitingPickups.forEach(pickup => {
+              const notification = {
+                id: pickup._id,
+                type: 'pickup_request',
+                title: 'New Pickup Request',
+                message: `Pickup available for ${pickup.wasteType || 'waste'}`,
+                pickupData: pickup,
+                earnings: `₹${pickup.earnings || '50-150'}`
+              };
+              setNotifications(prev => {
+                // Allow only one active pickup notification at a time
+                if (prev.length > 0) return prev;
+                if (prev.find(n => n.id === pickup._id)) return prev;
+                return [...prev, notification];
               });
+              Alert.alert(
+                notification.title,
+                notification.message,
+                [
+                  { text: 'Reject', style: 'cancel', onPress: () => handleNotificationReject(notification) },
+                  { text: 'Accept', onPress: () => handleNotificationAccept(notification) }
+                ]
+              );
+            });
             } catch (e) {
               console.warn('Error fetching available pickups:', e);
             }
@@ -209,6 +211,8 @@ export default function DeliveryDashboard({ navigation }) {
 
     try {
       console.log('Starting pickup acceptance for ID:', notification?.pickupData?._id);
+
+      // Removed authentication check as user is already logged in and is delivery agent
 
       // Validate pickup data first
       if (!notification?.pickupData?._id) {
