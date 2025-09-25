@@ -1,24 +1,21 @@
-# Task: Modify API calls for delivery notifications and fix login page reload
+# Estimated Weight Changes - Grams to Kilograms Conversion
 
-## Information Gathered:
-- DeliveryDashboard.js fetches available pickups on online toggle and listens for 'pickup-admin-approved' socket events for 'awaiting_agent' notifications. Need periodic polling to ensure notifications.
-- Login.js switchRole shows splash and clears data, but lacks page reload. Need to add DevSettings.reload().
-- apiService.js provides pickupAPI.getAvailablePickups().
+## Completed Tasks
+- [x] Update WasteUploadNew.js to accept input in grams with validation up to 999000 grams
+- [x] Add convertToKg function in WasteUploadNew.js to convert grams to kilograms before API call
+- [x] Update AfterScheduling.js to display estimated weight in grams
+- [x] Update NotificationPopup.js to display estimated weight in grams (multiply kg * 1000)
+- [x] Update calculateReward function in NotificationPopup.js to work with kg values
+- [x] Verify DeliveryRoutePage.js already displays in grams correctly
 
-## Plan:
-1. **Update DeliveryDashboard.js for periodic polling** ✅
-   - Added pollingIntervalRef useRef.
-   - Added useEffect with setInterval to poll pickupAPI.getAvailablePickups() every 30 seconds when isOnline.
-   - For new 'awaiting_agent' pickups, create notifications and show Alerts.
+## Summary
+- User input is now in grams (up to 999 kg equivalent)
+- API receives weight in kilograms (converted from grams)
+- All frontend displays show weight in grams for consistency
+- Backend models and calculations remain in kilograms
 
-2. **Update Login.js for page reload** ✅
-   - Imported DevSettings from 'react-native'.
-   - In switchRole, after clearing data, called DevSettings.reload().
-
-## Dependent Files to be Edited:
-- frontend/pages/DeliveryDashboard.js
-- frontend/pages/Login.js
-
-## Followup Steps:
-- Test periodic polling in DeliveryDashboard for notifications.
-- Test role switch in Login for splash, data clearing, and reload.
+## Testing Notes
+- Test waste upload with various gram inputs
+- Verify API receives correct kg values
+- Check displays in AfterScheduling, NotificationPopup, and DeliveryRoutePage show grams
+- Ensure reward calculations work correctly

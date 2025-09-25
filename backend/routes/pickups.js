@@ -5,6 +5,7 @@ const Transaction = require('../models/Transaction');
 const Address = require('../models/Address');
 const User = require('../models/User');
 const { protect, restrictTo } = require('../middleware/auth'); // Destructure the functions
+const { upload } = require('../utils/fileUpload');
 
 const router = express.Router();
 
@@ -32,6 +33,40 @@ router.get('/admin/pending', protect, restrictTo('admin'), async (req, res) => {
 });
 
 // Admin: approve pickup
+// Upload pickup photo
+router.post('/:id/photo', protect, restrictTo('delivery'), upload.single('photo'), async (req, res) => {
+  try {
+    const pickup = await Pickup.findById(req.params.id);
+    if (!pickup) {
+      return res.status(404).json({ status: 'error', message: 'Pickup not found' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ status: 'error', message: 'No photo uploaded' });
+    }
+
+    // Update pickup with photo URL
+    pickup.photos = pickup.photos || [];
+    pickup.photos.push({
+      url: `/uploads/pickups/${req.file.filename}`,
+      uploadedBy: req.user._id,
+      uploadedAt: new Date()
+    });
+
+    await pickup.save();
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        url: `/uploads/pickups/${req.file.filename}`
+      }
+    });
+  } catch (error) {
+    console.error('Upload photo error:', error);
+    res.status(500).json({ status: 'error', message: 'Failed to upload photo' });
+  }
+});
+
 router.put('/:id/admin/approve', protect, restrictTo('admin'), async (req, res) => {
   try {
     const pickup = await Pickup.findById(req.params.id).populate('user address');

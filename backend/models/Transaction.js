@@ -48,6 +48,25 @@ const transactionSchema = new mongoose.Schema({
     type: Date,
     default: null
   },
+  points: {
+    type: Number,
+    default: 0
+  },
+  wasteDetails: {
+    type: {
+      type: String,
+      enum: ['plastic', 'paper', 'organic', 'metal', 'glass', 'mixed'],
+      default: 'mixed'
+    },
+    quantity: {
+      type: Number,
+      required: true
+    },
+    pointsMultiplier: {
+      type: Number,
+      default: 1
+    }
+  },
   notes: {
     type: String,
     default: null

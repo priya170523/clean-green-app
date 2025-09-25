@@ -200,7 +200,7 @@ export default function AfterScheduling({ navigation, route }) {
             <Text style={styles.summaryText}>Waste Type: {wasteType}</Text>
             {bottles > 0 && <Text style={styles.summaryText}>Bottles: {bottles}</Text>}
             {otherItems && <Text style={styles.summaryText}>Other Items: {otherItems}</Text>}
-            <Text style={styles.summaryText}>Estimated Weight: {estimatedWeight}kg</Text>
+            <Text style={styles.summaryText}>Estimated Weight: {estimatedWeight} grams</Text>
             <Text style={styles.summaryText}>
               Priority: {immediatePickup ? 'Immediate Pickup' : 'Scheduled Pickup'}
             </Text>

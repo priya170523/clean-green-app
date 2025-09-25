@@ -23,11 +23,18 @@ api.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`;
       }
 
+      // Don't override multipart/form-data content type
+      if (config.headers['Content-Type'] === 'multipart/form-data') {
+        delete config.headers['Content-Type'];
+      }
+
       console.log('API Request:', {
         method: config.method?.toUpperCase(),
         url: config.url,
         baseURL: config.baseURL,
-        fullURL: `${config.baseURL}${config.url}`
+        fullURL: `${config.baseURL}${config.url}`,
+        headers: config.headers,
+        data: config.data
       });
     } catch (error) {
       console.error('Error getting auth token:', error);
@@ -40,12 +47,41 @@ api.interceptors.request.use(
   }
 );
 
+// Valid pickup statuses
+const VALID_PICKUP_STATUSES = [
+  'pending',
+  'awaiting_agent',
+  'accepted',
+  'in_progress',
+  'completed',
+  'cancelled'
+];
+
+// Rate limiting configuration
+const RATE_LIMIT_RESET_TIME = 60000; // 1 minute
+let requestCount = 0;
+let lastResetTime = Date.now();
+
 // Response interceptor to handle errors
 api.interceptors.response.use(
   (response) => {
     return response;
   },
   async (error) => {
+    // Reset rate limit counter if enough time has passed
+    const now = Date.now();
+    if (now - lastResetTime >= RATE_LIMIT_RESET_TIME) {
+      requestCount = 0;
+      lastResetTime = now;
+    }
+
+    // Handle rate limiting
+    if (error.response?.status === 429) {
+      const retryAfter = parseInt(error.response.headers['retry-after']) || 60;
+      await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+      return api.request(error.config);
+    }
+
     console.error('API Error:', {
       message: error.message,
       status: error.response?.status,
@@ -53,6 +89,28 @@ api.interceptors.response.use(
       url: error.config?.url,
       method: error.config?.method
     });
+
+    // Retry logic for 429 Too Many Requests
+    if (error.response?.status === 429) {
+      const config = error.config;
+      if (!config.__retryCount) {
+        config.__retryCount = 0;
+      }
+
+      if (config.__retryCount >= 3) {
+        // Reject after 3 retries
+        return Promise.reject(error);
+      }
+
+      config.__retryCount += 1;
+
+      // Exponential backoff delay
+      const delay = Math.pow(2, config.__retryCount) * 1000;
+
+      await new Promise(resolve => setTimeout(resolve, delay));
+
+      return api(config);
+    }
 
     if (error.response?.status === 401) {
       // Token expired or invalid
@@ -190,6 +248,26 @@ export const pickupAPI = {
     const response = await api.get(`/pickups/user?status=${status}`);
     return response.data;
   },
+
+  // Upload pickup photo
+  uploadPickupPhoto: async (pickupId, formData) => {
+    const response = await api.post(`/pickups/${pickupId}/photo`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  // Upload pickup photo
+  uploadPickupPhoto: async (pickupId, formData) => {
+    const response = await api.post(`/pickups/${pickupId}/photo`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
 };
 
 // Address API
@@ -245,6 +323,18 @@ export const rewardAPI = {
   // Redeem reward
   redeemReward: async (rewardId) => {
     const response = await api.put(`/rewards/${rewardId}/redeem`);
+    return response.data;
+  },
+
+  // Get user progress
+  getProgress: async () => {
+    const response = await api.get('/progress');
+    return response.data;
+  },
+
+  // Claim wheel reward
+  claimWheelReward: async (result) => {
+    const response = await api.post('/progress/wheel-reward', { result });
     return response.data;
   },
 

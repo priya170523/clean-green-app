@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 require('dotenv').config({ path: './config.env' });
@@ -69,6 +70,7 @@ app.use(cors(corsOptions));
 // Body parsing middleware with larger limits for image uploads
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -127,6 +129,7 @@ app.use('/api/pickups', pickupRoutes);
 app.use('/api/addresses', addressRoutes);
 app.use('/api/rewards', rewardRoutes);
 app.use('/api/uploads', uploadRoutes);
+app.use('/api/progress', require('./routes/progress'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {

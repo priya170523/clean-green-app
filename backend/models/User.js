@@ -44,6 +44,10 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  achievements: {
+    type: [String],
+    default: []
+  },
   // User specific fields
   addresses: [{
     type: mongoose.Schema.Types.ObjectId,

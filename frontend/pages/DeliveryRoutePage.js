@@ -30,6 +30,7 @@ import * as Location from 'expo-location';
 import { getDirections, getFallbackDirections } from '../services/mapsService';
 import { dummyNotifications } from '../services/dummyData';
 import { pickupAPI } from '../services/apiService';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function DeliveryRoutePage({ navigation, route }) {
   const { pickupData } = route.params || {};
@@ -44,6 +45,10 @@ export default function DeliveryRoutePage({ navigation, route }) {
   const [pickupStatus, setPickupStatus] = useState('accepted'); // accepted, reached, picked
   const [showPickedButton, setShowPickedButton] = useState(false);
   const [showReachedButton, setShowReachedButton] = useState(true);
+  const [locationLoaded, setLocationLoaded] = useState(false);
+  const [showThankYou, setShowThankYou] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadedImages, setUploadedImages] = useState([]);
 
   // Get current location
   useEffect(() => {
@@ -56,6 +61,7 @@ export default function DeliveryRoutePage({ navigation, route }) {
             latitude: location.coords.latitude,
             longitude: location.coords.longitude,
           });
+          setLocationLoaded(true);
         } else {
           console.warn('Location permission denied');
         }
@@ -166,16 +172,15 @@ export default function DeliveryRoutePage({ navigation, route }) {
 
       await pickupAPI.updatePickupStatus(pickupData._id, 'completed', null, 'Pickup completed', distance);
       setPickupStatus('picked');
-      Alert.alert('Pickup Updated', 'Proceeding to warehouse for submission.');
 
-      // Navigate to warehouse navigation with updated data
-      navigation.navigate('WarehouseNavigation', {
-        pickupData: {
-          ...pickupData,
-          _id: pickupData._id,
-          distance: distance
-        }
-      });
+      // Show thank you overlay
+      setShowThankYou(true);
+
+      // Hide overlay and navigate after 2 seconds
+      setTimeout(() => {
+        setShowThankYou(false);
+        navigation.navigate('DeliveryDashboard');
+      }, 2000);
     } catch (error) {
       console.error('Error updating pickup status:', error);
       Alert.alert('Error', 'Failed to update pickup status');
@@ -184,6 +189,68 @@ export default function DeliveryRoutePage({ navigation, route }) {
 
   const handleSupport = () => {
     navigation.navigate('Support');
+  };
+
+  const handleUploadPhoto = async () => {
+    try {
+      setIsUploading(true);
+      
+      // Request camera permissions
+      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert('Permission Required', 'Camera access is required to take photos');
+        return;
+      }
+
+      // Launch camera
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      console.log('Camera result:', result);
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const imageUri = result.assets[0].uri;
+        
+        // Get file info
+        const localUri = imageUri;
+        const filename = localUri.split('/').pop();
+        const match = /\.(\w+)$/.exec(filename);
+        const type = match ? `image/${match[1]}` : 'image/jpeg';
+        
+        console.log('Photo details:', { localUri, filename, type });
+
+        // Create form data
+        const formData = new FormData();
+        formData.append('photo', {
+          uri: localUri,
+          name: filename,
+          type
+        });
+
+        console.log('FormData created:', formData);
+        console.log('Pickup ID:', pickupData._id);
+
+        // Upload photo using pickupAPI
+        const response = await pickupAPI.uploadPickupPhoto(pickupData._id, formData);
+        console.log('Photo upload response:', response);
+
+        if (response.status === 'success') {
+          setUploadedImages([...uploadedImages, response.data.url]);
+          Alert.alert('Success', 'Photo uploaded successfully');
+        } else {
+          throw new Error(response.message || 'Failed to upload photo');
+        }
+      }
+    } catch (error) {
+      console.error('Error uploading photo:', error);
+      Alert.alert('Error', 'Failed to upload photo: ' + (error.message || 'Unknown error'));
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleCallCustomer = () => {
@@ -245,7 +312,7 @@ export default function DeliveryRoutePage({ navigation, route }) {
         <View style={styles.mapContainer}>
           <Text style={styles.mapTitle}>Route to Pickup Location</Text>
 
-          {loading ? (
+          {loading || !locationLoaded ? (
             <View style={styles.loadingContainer}>
               <Text style={styles.loadingText}>Calculating route...</Text>
             </View>
@@ -359,7 +426,7 @@ export default function DeliveryRoutePage({ navigation, route }) {
             Waste Type: {pickupData.wasteType || 'Mixed'}
           </Text>
           <Text style={styles.pickupWeight}>
-            Estimated Weight: {pickupData.estimatedWeight || 0} kg
+            Estimated Weight: {pickupData.estimatedWeight ? pickupData.estimatedWeight * 1000 : 0} grams
           </Text>
 
           {pickupData.wasteDetails && (
@@ -403,7 +470,17 @@ export default function DeliveryRoutePage({ navigation, route }) {
             </TouchableOpacity>
           )}
 
-          {showPickedButton && (
+          {/* Require photo upload after reached */}
+          {pickupStatus === 'reached' && (
+            <TouchableOpacity
+              style={[styles.actionButton, isUploading && styles.actionButtonDisabled]}
+              onPress={handleUploadPhoto}
+              disabled={isUploading}
+            >
+              <Text style={styles.actionButtonText}>{isUploading ? 'Uploading...' : 'Upload Photo'}</Text>
+            </TouchableOpacity>
+          )}
+          {pickupStatus === 'reached' && uploadedImages && uploadedImages.length > 0 && (
             <TouchableOpacity
               style={[styles.actionButton, pickupStatus === 'picked' && styles.actionButtonActive]}
               onPress={handlePicked}
@@ -417,6 +494,16 @@ export default function DeliveryRoutePage({ navigation, route }) {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Thank you overlay */}
+      {showThankYou && (
+        <View style={{ position: 'absolute', top: 100, left: 0, right: 0, alignItems: 'center', zIndex: 100 }}>
+          <View style={{ backgroundColor: '#4CAF50', padding: 20, borderRadius: 10 }}>
+            <Text style={{ color: '#fff', fontSize: 18, fontWeight: 'bold' }}>Thank you!</Text>
+            <Text style={{ color: '#fff', fontSize: 14, marginTop: 8 }}>Waste is successfully picked. Thank you for your contribution to the environment.</Text>
+          </View>
+        </View>
+      )}
     </ScrollView>
   );
 }

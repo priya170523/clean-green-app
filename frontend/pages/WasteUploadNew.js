@@ -31,12 +31,69 @@ export default function WasteUploadNew({ navigation }) {
     otherItems: '',
   });
   const [estimatedWeight, setEstimatedWeight] = useState('');
+
+  const validateWeight = (weight) => {
+    if (!weight) return '';
+
+    // Remove non-numeric characters except decimal point
+    const filtered = weight.replace(/[^0-9.]/g, '');
+
+    // Ensure only one decimal point
+    const parts = filtered.split('.');
+    if (parts.length > 2) return weight; // Keep old value if multiple decimal points
+
+    // Validate first part (before decimal)
+    if (parts[0].length > 6) return weight; // Max 999000 grams
+
+    // Limit to 2 decimal places
+    if (parts[1] && parts[1].length > 2) return weight;
+
+    // Ensure the value is not too large
+    const numValue = parseFloat(filtered);
+    if (numValue > 999000) return weight;
+
+    return filtered;
+  };
   const [priority, setPriority] = useState('now');
+
+  // Convert grams to kg for API
+  const convertToKg = (grams) => {
+    if (!grams) return 0;
+    return parseFloat(grams) / 1000;
+  };
   const [scheduledDate, setScheduledDate] = useState(new Date());
   const [scheduledTime, setScheduledTime] = useState('');
 
   useEffect(() => {
-    initializeData();
+    let mounted = true;
+
+    const initData = async () => {
+      try {
+        setLoading(true);
+        // Get current user
+        const user = await authService.getCurrentUser();
+        if (mounted) {
+          setCurrentUser(user);
+          // Load user's addresses
+          await loadAddresses();
+        }
+      } catch (error) {
+        console.error('Error initializing data:', error);
+        if (mounted) {
+          Alert.alert('Error', 'Failed to load user data');
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    initData();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const initializeData = async () => {
@@ -189,7 +246,7 @@ export default function WasteUploadNew({ navigation }) {
         priority,
         scheduledDate: priority === 'scheduled' ? scheduledDate.toISOString() : null,
         scheduledTime: priority === 'scheduled' ? scheduledTime : null,
-        estimatedWeight: parseFloat(estimatedWeight) || 1,
+        estimatedWeight: convertToKg(estimatedWeight) || 0.001,
       };
 
       console.log('Creating pickup with data:', pickupData);
@@ -370,9 +427,18 @@ export default function WasteUploadNew({ navigation }) {
               <TextInput
                 style={styles.input}
                 value={estimatedWeight}
-                onChangeText={setEstimatedWeight}
+                onChangeText={(text) => {
+                  // Only allow numbers and one decimal point
+                  const filtered = text.replace(/[^0-9.]/g, '');
+                  const parts = filtered.split('.');
+                  if (parts.length > 2) return;
+                  // Limit to 2 decimal places
+                  if (parts[1] && parts[1].length > 2) return;
+                  setEstimatedWeight(filtered);
+                }}
                 keyboardType="decimal-pad"
-                placeholder=""
+                placeholder="Enter weight in grams"
+                maxLength={6}
               />
             </View>
           </View>
@@ -496,6 +562,12 @@ export default function WasteUploadNew({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  helperText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',

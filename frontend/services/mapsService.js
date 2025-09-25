@@ -1,21 +1,56 @@
 import axios from 'axios';
 
+// Rate limiting and retry configuration
+const RETRY_DELAYS = [1000, 2000, 4000, 8000]; // Exponential backoff delays in ms
+let lastRequestTime = 0;
+const MIN_REQUEST_INTERVAL = 1000; // Minimum 1 second between requests
+
+const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+const rateLimitedRequest = async (requestFn, retryCount = 0) => {
+  const now = Date.now();
+  const timeSinceLastRequest = now - lastRequestTime;
+  
+  if (timeSinceLastRequest < MIN_REQUEST_INTERVAL) {
+    await wait(MIN_REQUEST_INTERVAL - timeSinceLastRequest);
+  }
+
+  try {
+    lastRequestTime = Date.now();
+    return await requestFn();
+  } catch (error) {
+    if (error.response?.status === 429 && retryCount < RETRY_DELAYS.length) {
+      const delay = RETRY_DELAYS[retryCount];
+      await wait(delay);
+      return rateLimitedRequest(requestFn, retryCount + 1);
+    }
+    throw error;
+  }
+};
+
 // OpenStreetMap-based routing using OpenRouteService (free tier available)
 const OPENROUTE_API_KEY = 'YOUR_OPENROUTE_API_KEY'; // Optional - can work without it
 const OPENROUTE_BASE_URL = 'https://api.openrouteservice.org/v2/directions';
 
-export const getDirections = async (origin, destination) => {
+export const getDirections = async (origin, destination, options = {}) => {
   try {
     // First try OpenRouteService (free tier available)
     if (OPENROUTE_API_KEY && OPENROUTE_API_KEY !== 'YOUR_OPENROUTE_API_KEY') {
+      const routingProfile = options.mode === 'walking' ? 'foot' : 'driving-car';
+      
       const response = await axios.get(OPENROUTE_BASE_URL, {
         params: {
           api_key: OPENROUTE_API_KEY,
           start: `${origin.longitude},${origin.latitude}`,
           end: `${destination.longitude},${destination.latitude}`,
-          profile: 'driving-car',
+          profile: routingProfile,
           format: 'json',
-          options: '{"avoid_tolls":true,"avoid_highways":false}',
+          options: JSON.stringify({
+            avoid_tolls: options.avoid?.includes('tolls') || false,
+            avoid_highways: options.avoid?.includes('highways') || false,
+            prefer_roads: true,
+            optimize_route: options.optimize || true
+          }),
         },
       });
 

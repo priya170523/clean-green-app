@@ -1,7 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Alert, ActivityIndicator } from 'react-native';
 import { pickupAPI } from '../services/apiService';
 import notificationService from '../services/notificationService';
+
+// Calculate reward based on weight
+const calculateReward = (weight) => {
+  // weight is in kg
+  // Base reward is 10 rupees
+  let reward = 10;
+
+  // Add 5 rupees for each kg, max 50 rupees
+  reward += Math.min(Math.floor(weight) * 5, 40);
+
+  return Math.min(reward, 50);
+};
 
 export default function NotificationPopup({ visible, notification, onClose, onAccept, onReject }) {
   const [timeLeft, setTimeLeft] = useState(20);
@@ -37,31 +49,54 @@ export default function NotificationPopup({ visible, notification, onClose, onAc
   const handleAccept = async () => {
     if (!notification || isAccepting) return;
 
-    try {
-      setIsAccepting(true);
-
-      // Accept the pickup request
-      const response = await pickupAPI.acceptPickup(notification.pickupId || notification._id);
-
-      if (response.status === 'success') {
-        if (onAccept) {
-          onAccept(notification);
-        }
-
-        // Navigate to route information page
-        onClose();
-
-        // The navigation will be handled by the parent component
-        // since we need access to navigation prop
-      } else {
-        Alert.alert('Error', response.message || 'Failed to accept pickup');
-      }
-    } catch (error) {
-      console.error('Accept pickup error:', error);
-      Alert.alert('Error', 'Failed to accept pickup request');
-    } finally {
-      setIsAccepting(false);
+    // Safety check for notification data
+    if (!notification?.pickupData) {
+      Alert.alert('Error', 'Invalid pickup data');
+      return;
     }
+
+    // Show confirmation dialog with estimated reward
+    const reward = calculateReward(notification.pickupData.estimatedWeight || 0);
+    Alert.alert(
+      'Confirm Pickup',
+      `Are you sure you want to accept this pickup?\nEstimated Reward: ₹${reward}`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+          onPress: () => {
+            setIsAccepting(false);
+          }
+        },
+        {
+          text: 'Accept',
+          onPress: async () => {
+            try {
+              setIsAccepting(true);
+              // Accept the pickup request
+              const response = await pickupAPI.acceptPickup(notification.pickupId || notification._id);
+
+              if (response.status === 'success') {
+                // Close popup first to prevent multiple accepts
+                onClose();
+                // Then notify parent component
+                if (onAccept) {
+                  onAccept(notification);
+                }
+              } else {
+                Alert.alert('Error', response.message || 'Failed to accept pickup');
+              }
+            } catch (error) {
+              console.error('Error accepting pickup:', error);
+              Alert.alert('Error', 'Failed to accept pickup. Please try again.');
+            } finally {
+              setIsAccepting(false);
+            }
+          }
+        }
+      ],
+      { cancelable: false }
+    );
   };
 
   const handleReject = () => {
@@ -130,13 +165,20 @@ export default function NotificationPopup({ visible, notification, onClose, onAc
                 <Text style={styles.infoValue}>{notification.pickupData.wasteType || 'Mixed'}</Text>
 
                 <Text style={styles.infoLabel}>Estimated Weight:</Text>
-                <Text style={styles.infoValue}>{notification.pickupData.estimatedWeight || 0} kg</Text>
+                <Text style={styles.infoValue}>{notification.pickupData.estimatedWeight ? notification.pickupData.estimatedWeight * 1000 : 0} grams</Text>
 
                 <Text style={styles.infoLabel}>Potential Earnings:</Text>
                 <Text style={styles.infoValue}>₹{notification.pickupData.earnings || '50-150'}</Text>
               </View>
             )}
           </View>
+
+          {/* Loading Indicator */}
+          {(isAccepting || isRejecting) && (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size="large" color="#4CAF50" />
+            </View>
+          )}
 
           {/* Action Buttons */}
           <View style={styles.actions}>
@@ -167,6 +209,17 @@ export default function NotificationPopup({ visible, notification, onClose, onAc
 }
 
 const styles = StyleSheet.create({
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',

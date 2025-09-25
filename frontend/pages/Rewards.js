@@ -1,10 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { rewardAPI } from '../services/apiService';
+import SpinningWheel from '../components/SpinningWheel';
+import * as Progress from 'react-native-progress';
 
 export default function Rewards({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [rewards, setRewards] = useState([]);
+  const [totalWaste, setTotalWaste] = useState(0);
+  const [showWheel, setShowWheel] = useState(false);
+  const [firstTimeCoupon, setFirstTimeCoupon] = useState(null);
+  const [earnedRewards, setEarnedRewards] = useState([]);
+  const [totalPoints, setTotalPoints] = useState(0);
+  const [userLevel, setUserLevel] = useState(1);
+  const [pointsToNextLevel, setPointsToNextLevel] = useState(100);
 
   useEffect(() => {
     loadRewards();
@@ -13,9 +22,30 @@ export default function Rewards({ navigation }) {
   const loadRewards = async () => {
     try {
       setLoading(true);
-      const res = await rewardAPI.getRewards(1, 20, 'active');
-      if (res.status === 'success') {
-        setRewards(res.data.rewards || res.data || []);
+      const [rewardsRes, progressRes] = await Promise.all([
+        rewardAPI.getRewards(1, 20, 'active'),
+        rewardAPI.getProgress()
+      ]);
+
+      if (rewardsRes.status === 'success') {
+        setRewards(rewardsRes.data.rewards || rewardsRes.data || []);
+        setEarnedRewards(rewardsRes.data.earned || []);
+      }
+
+      if (progressRes.status === 'success') {
+        setTotalWaste(progressRes.data.totalWaste || 0);
+        setFirstTimeCoupon(progressRes.data.firstTimeCoupon);
+        setTotalPoints(progressRes.data.points || 0);
+        
+        // Calculate level based on points
+        const level = Math.floor(progressRes.data.points / 100) + 1;
+        setUserLevel(level);
+        setPointsToNextLevel((level * 100) - progressRes.data.points);
+        
+        // Show wheel if 2kg milestone reached
+        if (progressRes.data.totalWaste >= 2 && !progressRes.data.wheelSpun) {
+          setShowWheel(true);
+        }
       }
     } catch (e) {
       Alert.alert('Error', 'Failed to load rewards');
@@ -32,6 +62,19 @@ export default function Rewards({ navigation }) {
     navigation.goBack();
   };
 
+  const handleSpinComplete = async (result) => {
+    try {
+      const response = await rewardAPI.claimWheelReward(result);
+      if (response.status === 'success') {
+        setEarnedRewards(prev => [...prev, response.data]);
+        setShowWheel(false);
+      }
+    } catch (error) {
+      console.error('Error claiming wheel reward:', error);
+      Alert.alert('Error', 'Failed to claim reward');
+    }
+  };
+
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
@@ -44,9 +87,66 @@ export default function Rewards({ navigation }) {
       </View>
 
       <View style={styles.content}>
+        {/* Points and Level Section */}
+        <View style={styles.pointsCard}>
+          <View style={styles.pointsHeader}>
+            <Text style={styles.pointsTitle}>Green Points</Text>
+            <View style={styles.levelBadge}>
+              <Text style={styles.levelText}>Level {userLevel}</Text>
+            </View>
+          </View>
+          <Text style={styles.pointsValue}>{totalPoints}</Text>
+          <View style={styles.progressContainer}>
+            <Progress.Bar
+              progress={(100 - pointsToNextLevel) / 100}
+              width={null}
+              height={8}
+              color="#4CAF50"
+              unfilledColor="#E8F5E9"
+              borderWidth={0}
+            />
+            <Text style={styles.progressText}>{pointsToNextLevel} points to next level</Text>
+          </View>
+        </View>
+
+        {/* Waste Progress Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Waste Collection Progress</Text>
+          <View style={styles.progressContainer}>
+            <Progress.Circle
+              size={120}
+              progress={Math.min(totalWaste / 2, 1)}
+              thickness={8}
+              color="#4CAF50"
+              unfilledColor="#E8F5E9"
+              borderWidth={0}
+              showsText
+              formatText={() => `${totalWaste.toFixed(1)}kg`}
+            />
+            <Text style={styles.targetText}>Target: 2kg</Text>
+          </View>
+        </View>
+
+        {/* First Time Coupon */}
+        {firstTimeCoupon && (
+          <View style={styles.couponContainer}>
+            <Text style={styles.couponTitle}>First-Time Pickup Coupon</Text>
+            <Text style={styles.couponValue}>₹50 OFF</Text>
+            <Text style={styles.couponCode}>Code: {firstTimeCoupon.code}</Text>
+          </View>
+        )}
+
+        {/* Spinning Wheel */}
+        {showWheel && (
+          <View style={styles.wheelContainer}>
+            <Text style={styles.wheelTitle}>Congratulations! Spin the wheel to claim your reward!</Text>
+            <SpinningWheel onSpinComplete={handleSpinComplete} />
+          </View>
+        )}
+
         {/* Rewards List */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Available Rewards</Text>
+          <Text style={styles.sectionTitle}>Your Rewards</Text>
           {loading ? (
             <ActivityIndicator />
           ) : (
@@ -91,6 +191,47 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+  },
+  progressContainer: {
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  progressText: {
+    marginTop: 5,
+    fontSize: 16,
+    color: '#666',
+  },
+  couponContainer: {
+    backgroundColor: '#4CAF50',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 20,
+    alignItems: 'center',
+  },
+  couponTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  couponValue: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginVertical: 5,
+  },
+  couponCode: {
+    color: '#fff',
+    fontSize: 14,
+  },
+  wheelContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  wheelTitle: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 10,
+    color: '#4CAF50',
   },
   header: {
     flexDirection: 'row',
