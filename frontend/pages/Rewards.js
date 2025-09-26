@@ -25,7 +25,7 @@ export default function Rewards({ navigation }) {
       setLoading(true);
       const [rewardsRes, earnedRes, progressRes] = await Promise.all([
         rewardAPI.getRewards(1, 20, 'active'),
-        rewardAPI.getRewards(1, 20, 'earned'),
+        rewardAPI.getRewards(1, 20, 'all'),
         rewardAPI.getProgress()
       ]);
 
@@ -99,30 +99,30 @@ export default function Rewards({ navigation }) {
 
   const handleSpinComplete = async (result) => {
     if (isSpinning || !canSpin) return; // Prevent multiple spins
-    
+
     try {
       setIsSpinning(true); // Lock spinning while API call is in progress
       setCanSpin(false); // Immediately disable spin button
-      
+      setShowWheel(false); // Hide wheel immediately to prevent further spins
+
       const response = await rewardAPI.claimWheelReward({ value: result.value, type: result.type });
       if (response.status === 'success') {
         // Add the new reward to earned list immediately
         const newReward = {
           ...response.data,
-          title: `Spin Reward: ${result.type === 'money' ? `₹${result.value} OFF` : `${result.value} Seeds`}`,
-          description: `You won ${result.type === 'money' ? `₹${result.value}` : `${result.value} Seeds`}!`,
+          title: `Spin Reward: ${result.type === 'coupon' ? `₹${result.value} OFF` : result.type === 'cashback' ? `₹${result.value} Cashback` : result.type === 'seeds' ? `${result.value} Seeds` : result.type === 'plant' ? '1 Plant' : result.type === 'vermicompost' ? `${result.value} Vermicompost` : result.type === 'gift' ? '1 Gift' : `₹${result.value} OFF`}`,
+          description: `You won ${result.type === 'coupon' ? `₹${result.value} discount` : result.type === 'cashback' ? `₹${result.value} cashback` : result.type === 'seeds' ? `${result.value} seeds` : result.type === 'plant' ? '1 plant' : result.type === 'vermicompost' ? `${result.value} vermicompost` : result.type === 'gift' ? '1 gift' : `₹${result.value} discount`}!`,
           type: 'spin_reward'
         };
         setEarnedRewards(prev => [...prev, newReward]);
-        setShowWheel(false); // Hide wheel immediately after successful spin
-        setCanSpin(false); // Ensure spin is locked
         loadRewards(); // Reload to update progress and confirm backend state
-        Alert.alert('Congratulations!', `You won ${result.type === 'money' ? `₹${result.value}` : `${result.value} Seeds`}!\nCheck your rewards list for details.`);
+        Alert.alert('Congratulations!', `You won ${result.type === 'coupon' ? `₹${result.value} discount` : result.type === 'cashback' ? `₹${result.value} cashback` : result.type === 'seeds' ? `${result.value} seeds` : result.type === 'plant' ? '1 plant' : result.type === 'vermicompost' ? `${result.value} vermicompost` : result.type === 'gift' ? '1 gift' : `₹${result.value} discount`}!\nCheck your rewards list for details.`);
       }
     } catch (error) {
       console.error('Error claiming wheel reward:', error);
       Alert.alert('Error', 'Failed to claim reward. Please try again.');
-      setCanSpin(true); // Re-enable spinning on error
+      // On error, reload to check if spin was actually processed
+      loadRewards();
     } finally {
       setIsSpinning(false); // Always reset spinning state
     }
