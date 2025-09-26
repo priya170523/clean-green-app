@@ -73,6 +73,46 @@ router.put('/profile', protect, async (req, res) => {
   }
 });
 
+// Get total waste stats for all users (for dashboard graph)
+router.get('/total-waste-stats', protect, async (req, res) => {
+  try {
+    // Get last 7 days labels
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const today = new Date();
+    const week = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      week.push({
+        label: days[d.getDay()],
+        date: d.toISOString().slice(0, 10),
+      });
+    }
+
+    // Count pickups per day for all users
+    const counts = await Promise.all(week.map(async (day) => {
+      const count = await Pickup.countDocuments({
+        createdAt: {
+          $gte: new Date(day.date + 'T00:00:00.000Z'),
+          $lt: new Date(day.date + 'T23:59:59.999Z')
+        }
+      });
+      return { label: day.label, value: count };
+    }));
+
+    res.status(200).json({
+      status: 'success',
+      data: counts
+    });
+  } catch (error) {
+    console.error('Error fetching total waste stats:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Failed to fetch total waste stats'
+    });
+  }
+});
+
 // Get user dashboard data (user-specific)
 router.get('/dashboard', protect, async (req, res) => {
   try {

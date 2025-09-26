@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Dimensions, Animated } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: screenWidth } = Dimensions.get('window');
 const chartWidth = screenWidth - 40;
-const chartHeight = 200;
+const chartHeight = 180;
+const padding = 10;
+const graphHeight = chartHeight - 30; // Reduced space for labels
 
 export default function LineChart({ data, title = "Waste Contribution Trend" }) {
   const [animation] = useState(new Animated.Value(0));
@@ -29,88 +30,79 @@ export default function LineChart({ data, title = "Waste Contribution Trend" }) 
     );
   }
 
-  // Find min and max values for scaling
-  const values = data.map(item => item.value);
-  const minValue = Math.min(...values);
-  const maxValue = Math.max(...values);
-  const range = maxValue - minValue || 1;
+  // Dynamic Y-axis based on data max
+  const dataMax = Math.max(...data.map(d => d.value));
+  const maxValue = Math.max(20, dataMax * 1.1); // 10% padding
+  const minValue = 0;
+  const yRange = maxValue - minValue;
+  const ySteps = 5;
+  const stepValue = yRange / ySteps;
+  const yAxisLabels = Array.from({length: ySteps + 1}, (_, i) => Math.round((ySteps - i) * stepValue));
 
-  // Calculate bar heights for visualization
-  const barWidth = Math.max(28, (chartWidth - 40) / data.length); // wider bars
-  const maxBarHeight = chartHeight - 60;
-
-  // Reverse the y-axis labels for descending order
-  const yAxisSteps = 4;
-  const yAxisLabels = Array.from({ length: yAxisSteps + 1 }, (_, i) => {
-    const value = maxValue - (i * (range / yAxisSteps));
-    return Math.round(value);
-  });
+  // Bar width with spacing - dynamic for better fit
+  const barSpacing = 10;
+  const barWidth = Math.min(25, (chartWidth - 70) / data.length);
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{title}</Text>
       <View style={styles.chartContainer}>
         <View style={styles.chartArea}>
-          {/* Enhanced bar chart with glowing effect */}
+          {/* Y-axis labels */}
+          <View style={styles.yAxisLabels}>
+            {yAxisLabels.map((label, i) => (
+              <Text key={i} style={styles.yAxisLabel}>{label}</Text>
+            ))}
+          </View>
+
+          {/* Grid lines */}
+          <View style={styles.gridContainer}>
+            {yAxisLabels.map((_, i) => (
+              <View key={i} style={styles.gridLine} />
+            ))}
+          </View>
+
+          {/* Bars container - grow from bottom */}
           <View style={styles.barsContainer}>
             {data.map((item, index) => {
-              // Calculate correct bar height (proportional to value)
-              const targetHeight = ((item.value - minValue) / range) * maxBarHeight;
+              const normalized = Math.max(0, Math.min(1, (item.value - minValue) / yRange));
+              const targetHeight = normalized * graphHeight;
               const animatedHeight = animation.interpolate({
                 inputRange: [0, 1],
                 outputRange: [0, targetHeight],
               });
-              const isPositive = item.value >= (minValue + maxValue) / 2;
+
               return (
-                <View key={index} style={[styles.barContainer, { width: barWidth }]}> 
-                  <LinearGradient
-                    colors={isPositive
-                      ? ['#4CAF50', '#66BB6A', '#81C784']
-                      : ['#F44336', '#EF5350', '#E57373']
-                    }
-                    style={[styles.gradientBar, { width: barWidth, borderRadius: 6 }]
-                    }
-                  >
-                    <Animated.View
-                      style={[
-                        styles.bar,
-                        {
-                          height: animatedHeight,
-                          backgroundColor: isPositive ? '#4CAF50' : '#F44336',
-                          shadowColor: isPositive ? '#4CAF50' : '#F44336',
-                          shadowOffset: { width: 0, height: 0 },
-                          shadowOpacity: 0.8,
-                          shadowRadius: 10,
-                          width: barWidth,
-                          borderRadius: 6,
-                        }
-                      ]}
-                    />
-                  </LinearGradient>
-                  <Text style={styles.barLabel}>{item.label}</Text>
-                  <Animated.Text
+                <View key={index} style={styles.barItem}>
+                  <Animated.View
                     style={[
-                      styles.barValue,
+                      styles.bar,
                       {
-                        opacity: animation,
-                        color: isPositive ? '#4CAF50' : '#F44336',
-                        fontWeight: '700',
-                      }
+                        height: animatedHeight,
+                        backgroundColor: '#4CAF50', // Green for waste theme
+                        width: barWidth,
+                      },
                     ]}
                   >
-                    {item.value}
-                  </Animated.Text>
+                    <Animated.Text
+                      style={[
+                        styles.barValue,
+                        {
+                          opacity: animation,
+                        },
+                      ]}
+                    >
+                      {item.value}
+                    </Animated.Text>
+                  </Animated.View>
+                  <Text style={styles.barLabel}>{item.label}</Text>
                 </View>
               );
             })}
           </View>
 
-          {/* Y-axis labels (descending order) */}
-          <View style={styles.yAxisLabels}>
-            {yAxisLabels.map((value, i) => (
-              <Text key={i} style={styles.yAxisLabel}>{value}</Text>
-            ))}
-          </View>
+          {/* X-axis */}
+          <View style={styles.xAxis} />
         </View>
       </View>
     </View>
@@ -144,63 +136,96 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: padding,
+    paddingBottom: 30, // More space for labels
+    position: 'relative',
+  },
+  yAxisLabels: {
+    position: 'absolute',
+    left: 10,
+    top: 0,
+    height: graphHeight,
+    justifyContent: 'space-between',
+    width: 40,
+    zIndex: 1,
+  },
+  gridContainer: {
+    position: 'absolute',
+    left: 50,
+    top: 0,
+    height: graphHeight,
+    justifyContent: 'space-between',
+    width: '100%',
+    zIndex: 0,
+  },
+  gridLine: {
+    height: 0.5,
+    backgroundColor: '#f0f0f0',
   },
   barsContainer: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    height: chartHeight - 40,
+    justifyContent: 'space-around',
+    height: graphHeight,
+    marginLeft: 60,
+    paddingBottom: 5,
+    zIndex: 2,
   },
-  barContainer: {
-    flex: 1,
+  barItem: {
     alignItems: 'center',
-    marginHorizontal: 2,
+    flex: 1,
+    justifyContent: 'flex-end',
   },
   bar: {
-    width: '80%',
-    borderRadius: 2,
-    marginBottom: 5,
-  },
-  gradientBar: {
-    width: '80%',
-    borderRadius: 2,
-    marginBottom: 5,
-    alignItems: 'flex-end',
-    justifyContent: 'flex-end',
-    paddingBottom: 2,
-  },
-  barLabel: {
-    fontSize: 10,
-    color: '#666',
-    textAlign: 'center',
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 4,
+    alignSelf: 'flex-end',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 5,
   },
   barValue: {
-    fontSize: 12,
-    textAlign: 'center',
     position: 'absolute',
-    top: -25,
-    width: '100%',
+    top: -20,
+    left: '50%',
+    transform: [{ translateX: -15 }],
+    fontSize: 11,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    color: '#333',
+    backgroundColor: 'transparent',
+  },
+  barLabel: {
+    position: 'absolute',
+    bottom: -25,
+    left: 0,
+    right: 0,
+    fontSize: 11,
+    color: '#666',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  xAxis: {
+    position: 'absolute',
+    bottom: 5,
+    left: 60,
+    right: padding,
+    height: 1,
+    backgroundColor: '#ddd',
+  },
+  yAxisLabel: {
+    fontSize: 11,
+    color: '#666',
+    textAlign: 'right',
+    fontWeight: '500',
   },
   noDataText: {
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
     paddingVertical: 40,
-  },
-  yAxisLabels: {
-    position: 'absolute',
-    left: 0,
-    top: 10,
-    height: chartHeight - 40,
-    justifyContent: 'space-between',
-    width: 30,
-  },
-  yAxisLabel: {
-    fontSize: 10,
-    color: '#666',
-    textAlign: 'right',
   },
 });

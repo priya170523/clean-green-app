@@ -42,6 +42,7 @@ export default function Dashboard({ navigation }) {
   const [addresses, setAddresses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userPickups, setUserPickups] = useState([]);
+  const [totalWasteData, setTotalWasteData] = useState([]);
 
   useEffect(() => {
     loadDashboardData();
@@ -79,6 +80,16 @@ export default function Dashboard({ navigation }) {
 
       if (response.status === 'success') {
         setDashboardData(response.data);
+      }
+
+      // Get total waste stats
+      try {
+        const totalWasteResponse = await userAPI.getTotalWasteStats();
+        if (totalWasteResponse.status === 'success') {
+          setTotalWasteData(totalWasteResponse.data);
+        }
+      } catch (e) {
+        console.error('Error fetching total waste stats:', e);
       }
 
       // Get user addresses
@@ -218,10 +229,10 @@ export default function Dashboard({ navigation }) {
 
 
 
-        {/* Dynamic Points Trend Chart */}
+        {/* Waste Analysis Trend Chart */}
         <LineChart
-          data={getWeeklyContributionData(userPickups)}
-          title="Points Trend (Points * Weight)"
+          data={totalWasteData}
+          title="Waste Analysis Trend"
         />
 
         {/* Detailed History */}
