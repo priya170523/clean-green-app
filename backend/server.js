@@ -38,6 +38,32 @@ const io = new Server(server, {
 // Security middleware
 app.use(helmet());
 
+// Increase payload size limit
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Add timeout middleware
+app.use((req, res, next) => {
+  // Set timeout to 30 seconds
+  req.setTimeout(30000, () => {
+    if (!res.headersSent) {
+      res.status(408).json({
+        status: 'error',
+        message: 'Request timeout'
+      });
+    }
+  });
+  next();
+});
+
+// CORS configuration with specific options
+app.use(cors({
+  origin: '*', // In production, replace with your frontend domain
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
+
 // Rate limiting
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
@@ -62,7 +88,10 @@ const corsOptions = {
 
     callback(new Error('Not allowed by CORS'));
   },
-  credentials: true
+  credentials: true,
+  // Add these to ensure multipart/form-data works
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 };
 
 app.use(cors(corsOptions));

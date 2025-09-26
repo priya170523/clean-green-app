@@ -150,7 +150,7 @@ export default function WarehouseNavigation({ navigation, route }) {
           {
             text: 'OK',
             onPress: () => {
-              navigation.navigate('DeliveryDashboard');
+              navigation.navigate('DeliveryMain', { screen: 'DeliveryDashboard' });
             }
           }
         ]

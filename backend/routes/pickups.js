@@ -6,6 +6,8 @@ const Address = require('../models/Address');
 const User = require('../models/User');
 const { protect, restrictTo } = require('../middleware/auth'); // Destructure the functions
 const { upload } = require('../utils/fileUpload');
+const multer = require('multer');
+const uploadMiddleware = multer().none();
 
 const router = express.Router();
 
@@ -33,6 +35,8 @@ router.get('/admin/pending', protect, restrictTo('admin'), async (req, res) => {
 });
 
 // Admin: approve pickup
+const { uploadToCloudinary } = require('../utils/fileUpload');
+
 // Upload pickup photo
 router.post('/:id/photo', protect, restrictTo('delivery'), upload.single('photo'), async (req, res) => {
   try {
@@ -42,13 +46,30 @@ router.post('/:id/photo', protect, restrictTo('delivery'), upload.single('photo'
     }
 
     if (!req.file) {
-      return res.status(400).json({ status: 'error', message: 'No photo uploaded' });
+      return res.status(400).json({ status: 'error', message: 'No photo file provided' });
     }
 
-    // Update pickup with photo URL
+    console.log('Received photo upload:', {
+      fieldname: req.file.fieldname,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    });
+
+    // Convert buffer to base64 for Cloudinary upload
+    const base64String = req.file.buffer.toString('base64');
+    const dataUri = `data:${req.file.mimetype};base64,${base64String}`;
+
+    // Upload to Cloudinary
+    const cloudinaryResult = await uploadToCloudinary(dataUri, 'pickups', req.file.mimetype);
+    if (!cloudinaryResult.secure_url) {
+      return res.status(500).json({ status: 'error', message: 'Failed to upload to cloud storage' });
+    }
+
+    // Update pickup with Cloudinary URL and public_id
     pickup.photos = pickup.photos || [];
     pickup.photos.push({
-      url: `/uploads/pickups/${req.file.filename}`,
+      url: cloudinaryResult.secure_url,
+      publicId: cloudinaryResult.public_id,
       uploadedBy: req.user._id,
       uploadedAt: new Date()
     });
@@ -58,7 +79,8 @@ router.post('/:id/photo', protect, restrictTo('delivery'), upload.single('photo'
     res.status(200).json({
       status: 'success',
       data: {
-        url: `/uploads/pickups/${req.file.filename}`
+        url: cloudinaryResult.secure_url,
+        publicId: cloudinaryResult.public_id
       }
     });
   } catch (error) {
@@ -405,13 +427,35 @@ router.put('/:id/status', protect, restrictTo('delivery'), async (req, res) => {
     // On completion, compute earnings and record transaction
     if (status === 'completed') {
       pickup.calculateEarnings();
+
+      // Map wasteType to transaction wasteDetails type
+      const wasteTypeMapping = {
+        'food': 'organic',
+        'bottles': 'plastic',
+        'other': 'mixed',
+        'mixed': 'mixed'
+      };
+
+      // Calculate quantity based on waste details
+      let quantity = pickup.estimatedWeight || 1; // Default to 1 if no weight
+      if (pickup.wasteType === 'bottles') {
+        quantity = pickup.wasteDetails.bottles || quantity;
+      } else if (pickup.wasteType === 'food') {
+        quantity = pickup.wasteDetails.foodBoxes || quantity;
+      }
+
       await Transaction.create({
         user: req.user._id,
         type: 'earning',
         amount: pickup.earnings,
         description: `Pickup ${pickup._id} completed`,
         status: 'completed',
-        referenceId: `PK${pickup._id}`
+        referenceId: `PK${pickup._id}`,
+        wasteDetails: {
+          type: wasteTypeMapping[pickup.wasteType] || 'mixed',
+          quantity: quantity,
+          pointsMultiplier: 1
+        }
       });
     }
 

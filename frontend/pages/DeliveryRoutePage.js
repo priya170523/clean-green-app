@@ -25,8 +25,10 @@ import {
   Linking,
   Platform
 } from 'react-native';
+
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
+import base64 from 'base-64';
 import { getDirections, getFallbackDirections } from '../services/mapsService';
 import { dummyNotifications } from '../services/dummyData';
 import { pickupAPI } from '../services/apiService';
@@ -179,7 +181,7 @@ export default function DeliveryRoutePage({ navigation, route }) {
       // Hide overlay and navigate after 2 seconds
       setTimeout(() => {
         setShowThankYou(false);
-        navigation.navigate('DeliveryDashboard');
+        navigation.navigate('DeliveryMain', { screen: 'DeliveryDashboard' });
       }, 2000);
     } catch (error) {
       console.error('Error updating pickup status:', error);
@@ -194,7 +196,7 @@ export default function DeliveryRoutePage({ navigation, route }) {
   const handleUploadPhoto = async () => {
     try {
       setIsUploading(true);
-      
+
       // Request camera permissions
       const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
       if (!permissionResult.granted) {
@@ -214,24 +216,24 @@ export default function DeliveryRoutePage({ navigation, route }) {
 
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const imageUri = result.assets[0].uri;
-        
+
         // Get file info
         const localUri = imageUri;
         const filename = localUri.split('/').pop();
         const match = /\.(\w+)$/.exec(filename);
         const type = match ? `image/${match[1]}` : 'image/jpeg';
-        
+
         console.log('Photo details:', { localUri, filename, type });
 
-        // Create form data
+        // Create form data with file upload format (same as user upload)
         const formData = new FormData();
         formData.append('photo', {
-          uri: localUri,
+          uri: imageUri,
+          type: type,
           name: filename,
-          type
         });
 
-        console.log('FormData created:', formData);
+        console.log('FormData created with file upload');
         console.log('Pickup ID:', pickupData._id);
 
         // Upload photo using pickupAPI

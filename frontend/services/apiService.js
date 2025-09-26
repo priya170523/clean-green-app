@@ -2,15 +2,25 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
 // Base URL for the API
-// Use your computer's IP address instead of localhost for device testing
-const BASE_URL = 'http://172.26.0.213:5000/api';
+// For Android emulator: use 10.0.2.2 to access host localhost
+// For physical device: use host machine's WiFi IP (run `ipconfig` to find it, e.g., 192.168.x.x)
+// For iOS simulator: use localhost
+// Note: Update this IP to match your host machine's IP accessible from your device/emulator
+const BASE_URL = 'http://172.26.0.213:5000/api'; // WiFi IP for physical device
 
 // Create axios instance
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 10000,
+  timeout: 15000, // Increased timeout
   headers: {
     'Content-Type': 'application/json',
+  },
+  // Add retry configuration
+  maxRetries: 3,
+  retryDelay: 1000,
+  // Validate SSL certificates
+  validateStatus: function (status) {
+    return status >= 200 && status < 500; // Handle all 2xx and 4xx responses
   },
 });
 
@@ -68,11 +78,37 @@ api.interceptors.response.use(
     return response;
   },
   async (error) => {
+    console.log('Intercepting error:', {
+      message: error.message,
+      code: error.code,
+      config: {
+        url: error.config?.url,
+        method: error.config?.method,
+        baseURL: error.config?.baseURL
+      }
+    });
+
     // Reset rate limit counter if enough time has passed
     const now = Date.now();
     if (now - lastResetTime >= RATE_LIMIT_RESET_TIME) {
       requestCount = 0;
       lastResetTime = now;
+    }
+
+    // Handle network errors with retry
+    if (error.message === 'Network Error' || error.code === 'ECONNABORTED') {
+      const config = error.config;
+      if (!config || !config.retry) {
+        config.retry = 0;
+      }
+
+      if (config.retry < 3) {
+        config.retry += 1;
+        const delay = config.retry * 1000; // Progressive delay
+        console.log(`Retrying request (${config.retry}/3) after ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return api(config);
+      }
     }
 
     // Handle rate limiting
@@ -132,8 +168,29 @@ export const authAPI = {
 
   // Login user
   login: async (credentials) => {
-    const response = await api.post('/auth/login', credentials);
-    return response.data;
+    try {
+      console.log('Attempting login to:', `${BASE_URL}/auth/login`);
+      const response = await api.post('/auth/login', credentials);
+      return response.data;
+    } catch (error) {
+      console.error('Login request failed:', {
+        message: error.message,
+        code: error.code,
+        isAxiosError: error.isAxiosError,
+        status: error.response?.status,
+        serverError: error.response?.data
+      });
+      
+      // Check if server is reachable
+      try {
+        await api.get('/health');
+      } catch (healthError) {
+        console.error('Server health check failed:', healthError.message);
+        throw new Error('Server appears to be offline. Please try again later.');
+      }
+      
+      throw error;
+    }
   },
 
   // Verify token
@@ -251,22 +308,36 @@ export const pickupAPI = {
 
   // Upload pickup photo
   uploadPickupPhoto: async (pickupId, formData) => {
-    const response = await api.post(`/pickups/${pickupId}/photo`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response.data;
-  },
+    try {
+      // Get auth token
+      const token = await AsyncStorage.getItem('authToken');
+      if (!token) {
+        throw new Error('No auth token found');
+      }
 
-  // Upload pickup photo
-  uploadPickupPhoto: async (pickupId, formData) => {
-    const response = await api.post(`/pickups/${pickupId}/photo`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response.data;
+      console.log('Uploading pickup photo with fetch:', { pickupId });
+
+      const response = await fetch(`${BASE_URL}/pickups/${pickupId}/photo`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          // Do not set Content-Type; let browser/fetch set it with boundary
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Pickup photo upload successful:', data);
+      return data;
+    } catch (error) {
+      console.error('Fetch upload pickup photo error:', error);
+      throw error;
+    }
   },
 };
 
@@ -413,19 +484,43 @@ export const deliveryAPI = {
 export const uploadAPI = {
   // Upload single image
   uploadImage: async (imageUri) => {
-    const formData = new FormData();
-    formData.append('image', {
-      uri: imageUri,
-      type: 'image/jpeg',
-      name: 'image.jpg',
-    });
+    try {
+      // Get auth token
+      const token = await AsyncStorage.getItem('authToken');
+      if (!token) {
+        throw new Error('No auth token found');
+      }
 
-    const response = await api.post('/uploads/image', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response.data;
+      const formData = new FormData();
+      formData.append('image', {
+        uri: imageUri,
+        type: 'image/jpeg', // Fallback; actual type may vary (e.g., image/png)
+        name: 'image.jpg',
+      });
+
+      console.log('Uploading image with fetch:', { uri: imageUri });
+
+      const response = await fetch(`${BASE_URL}/uploads/image`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          // Do not set Content-Type; let browser/fetch set it with boundary
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Upload successful:', data);
+      return data;
+    } catch (error) {
+      console.error('Fetch upload error:', error);
+      throw error;
+    }
   },
 
   // Upload multiple images
@@ -434,16 +529,13 @@ export const uploadAPI = {
     imageUris.forEach((uri, index) => {
       formData.append('images', {
         uri: uri,
-        type: 'image/jpeg',
+        type: 'image/jpeg', // Fallback; actual type may vary
         name: `image_${index}.jpg`,
       });
     });
 
-    const response = await api.post('/uploads/multiple', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    // Let Axios auto-set Content-Type with boundary
+    const response = await api.post('/uploads/multiple', formData);
     return response.data;
   },
 
@@ -452,16 +544,13 @@ export const uploadAPI = {
     const formData = new FormData();
     formData.append('document', {
       uri: documentUri,
-      type: 'image/jpeg',
+      type: 'image/jpeg', // Adjust if documents can be PDF/other
       name: 'document.jpg',
     });
     formData.append('documentType', documentType);
 
-    const response = await api.post('/uploads/delivery-documents', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
+    // Let Axios auto-set Content-Type with boundary
+    const response = await api.post('/uploads/delivery-documents', formData);
     return response.data;
   },
 

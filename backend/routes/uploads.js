@@ -5,11 +5,23 @@ const { protect, restrictTo } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Configure Cloudinary
+// Configure and validate Cloudinary credentials
+if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+  console.error('❌ Cloudinary credentials not found in environment variables');
+  console.error('Required: CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET');
+}
+
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Test Cloudinary connection
+cloudinary.api.ping()
+  .then(() => console.log('✅ Cloudinary connection successful'))
+  .catch(error => {
+    console.error('❌ Cloudinary connection failed:', error.message);
 });
 
 // Configure multer for memory storage
@@ -29,6 +41,15 @@ const upload = multer({
 
 router.post('/image', protect, upload.single('image'), async (req, res) => {
   try {
+    console.log('Received upload request:', {
+      contentType: req.headers['content-type'],
+      fileInfo: req.file ? {
+        fieldname: req.file.fieldname,
+        mimetype: req.file.mimetype,
+        size: req.file.size
+      } : 'No file'
+    });
+    
     if (!req.file) {
       return res.status(400).json({
         status: 'error',
