@@ -61,12 +61,12 @@ export default function DeliveryEarnings({ navigation }) {
         <View style={styles.totalEarningsCard}>
           <Text style={styles.totalEarningsLabel}>Total Earnings</Text>
           <Text style={styles.totalEarningsAmount}>
-            ₹{user?.earnings?.total || 0}
+            ₹{earningsData?.totalEarnings || 0}
           </Text>
           <Text style={styles.totalEarningsSubtext}>
-            Total Waste Submitted: {user?.totalWaste || 0} kg
-            {user?.completedPickups ? `
-Total Pickups: ${user.completedPickups}` : ''}
+            Total Waste Submitted: {earningsData?.totalWaste || 0} kg
+            {earningsData?.completedPickups ? `
+Total Pickups: ${earningsData.completedPickups}` : ''}
           </Text>
         </View>
 
@@ -85,59 +85,7 @@ Total Pickups: ${user.completedPickups}` : ''}
           </View>
         </View>
 
-        {/* This Week's Earnings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>This Week's Earnings</Text>
-          <View style={styles.earningsCard}>
-            <View style={styles.earningsRow}>
-              <Text style={styles.earningsLabel}>Week's Waste:</Text>
-              <Text style={styles.earningsValue}>{earningsData?.weekWaste || 0} kg</Text>
-            </View>
-            <View style={styles.earningsRow}>
-              <Text style={styles.earningsLabel}>Amount Earned:</Text>
-              <Text style={styles.earningsValue}>₹{earningsData?.weekEarnings || 0}</Text>
-            </View>
-          </View>
-        </View>
 
-        {/* This Month's Earnings */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>This Month's Earnings</Text>
-          <View style={styles.earningsCard}>
-            <View style={styles.earningsRow}>
-              <Text style={styles.earningsLabel}>Pickups Completed:</Text>
-              <Text style={styles.earningsValue}>{earningsData?.monthPickups || 0}</Text>
-            </View>
-            <View style={styles.earningsRow}>
-              <Text style={styles.earningsLabel}>Amount Earned:</Text>
-              <Text style={styles.earningsValue}>₹{earningsData?.monthEarnings || 0}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Earnings Breakdown */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Earnings Breakdown</Text>
-          <View style={styles.breakdownCard}>
-            <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>Base Rate per Pickup:</Text>
-              <Text style={styles.breakdownValue}>₹50</Text>
-            </View>
-            <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>Distance Bonus:</Text>
-              <Text style={styles.breakdownValue}>₹20</Text>
-            </View>
-            <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>Performance Bonus:</Text>
-              <Text style={styles.breakdownValue}>₹10</Text>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownTotalLabel}>Total per Pickup:</Text>
-              <Text style={styles.breakdownTotalValue}>₹80</Text>
-            </View>
-          </View>
-        </View>
 
         {/* Payment Information */}
         <View style={styles.section}>
@@ -263,46 +211,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#4CAF50',
   },
-  breakdownCard: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 8,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  breakdownRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  breakdownLabel: {
-    fontSize: 14,
-    color: '#666',
-  },
-  breakdownValue: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: '#e0e0e0',
-    marginVertical: 12,
-  },
-  breakdownTotalLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  breakdownTotalValue: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#4CAF50',
-  },
+
   paymentCard: {
     backgroundColor: '#fff',
     padding: 20,

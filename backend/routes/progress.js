@@ -72,6 +72,23 @@ router.post('/update', protect, async function(req, res) {
             });
         }
 
+        // Create first-time pickup coupon if this is the user's first transaction
+        const totalTransactions = await Transaction.countDocuments({ user: user._id });
+        if (totalTransactions === 1 && !user.firstPickupCouponUsed) {
+            await Reward.create({
+                user: user._id,
+                type: 'first_pickup',
+                title: 'First-Time Pickup Coupon',
+                description: 'Congratulations on your first waste submission!',
+                couponCode: `FIRST${user._id.slice(-6)}`,
+                partner: 'Clean Green App',
+                discount: '₹50 OFF',
+                expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+            });
+            user.firstPickupCouponUsed = true;
+            await user.save();
+        }
+
         // Enable spin for every submission
         user.wheelSpunThisCycle = false;
         await user.save();
@@ -131,6 +148,10 @@ router.get('/', protect, function(req, res) {
                         };
                     }
 
+                    // Can spin only if user has submitted at least one waste transaction and hasn't spun this cycle
+                    const hasSubmittedWaste = transactions.length > 0;
+                    const canSpinWheel = hasSubmittedWaste && !(user.wheelSpunThisCycle || false);
+
                     res.json({
                         status: 'success',
                         data: {
@@ -139,7 +160,7 @@ router.get('/', protect, function(req, res) {
                             currentLevel: user.currentLevel || 1,
                             cycleProgress: user.cycleProgress || 0,
                             wheelSpunThisCycle: user.wheelSpunThisCycle || false,
-                            canSpin: !(user.wheelSpunThisCycle || false),
+                            canSpin: canSpinWheel,
                             firstTimeCoupon: (!user.firstPickupCouponUsed && transactions.length === 1) ? {
                                 code: `FIRST${req.user.id.slice(-6)}`,
                                 value: 50 // ₹50 off
@@ -162,13 +183,13 @@ router.get('/', protect, function(req, res) {
 
 // Handle wheel spin reward claim
 router.post('/wheel-reward', protect, function(req, res) {
-    const { result } = req.body;
-    if (!result) {
-        return res.status(400).json({ status: 'error', message: 'Wheel result required' });
+    const { value, type } = req.body;
+    if (!value || !type) {
+        return res.status(400).json({ status: 'error', message: 'Wheel result value and type required' });
     }
 
     let userData;
-    
+
     User.findById(req.user.id)
         .then(user => {
             userData = user;
@@ -180,14 +201,45 @@ router.post('/wheel-reward', protect, function(req, res) {
             }
 
             // Create reward based on wheel result
+            let title, description, discount;
+            if (type === 'plant') {
+                title = `Spin Win: Plant`;
+                description = `You won: 1 Plant`;
+                discount = `1 Plant`;
+            } else if (type === 'seeds') {
+                title = `Spin Win: Seeds`;
+                description = `You won: ${value} Seeds`;
+                discount = `${value} Seeds`;
+            } else if (type === 'vermicompost') {
+                title = `Spin Win: Vermicompost`;
+                description = `You won: ${value} Vermicompost`;
+                discount = `${value} Vermicompost`;
+            } else if (type === 'cashback') {
+                title = `Spin Win: ₹${value} Cashback`;
+                description = `You won: ₹${value} Cashback`;
+                discount = `₹${value} Cashback`;
+            } else if (type === 'coupon') {
+                title = `Spin Win: ₹${value} Coupon`;
+                description = `You won: ₹${value} Coupon`;
+                discount = `₹${value} OFF`;
+            } else if (type === 'gift') {
+                title = `Spin Win: Gift`;
+                description = `You won: 1 Gift`;
+                discount = `1 Gift`;
+            } else {
+                title = `Spin Win: ₹${value} OFF`;
+                description = `You won: ₹${value} discount`;
+                discount = `₹${value} OFF`;
+            }
+
             return Reward.create({
                 user: req.user.id,
                 type: 'special_achievement',
-                title: 'Spin Reward',
-                description: `You won: ${result}`,
+                title,
+                description,
                 couponCode: `SPIN${Date.now().toString(36).slice(-6)}`,
                 partner: 'Clean Green App',
-                discount: `₹${result} OFF`,
+                discount,
                 expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
             });
         })
@@ -206,9 +258,9 @@ router.post('/wheel-reward', protect, function(req, res) {
         .catch(error => {
             console.error('Error handling wheel reward:', error);
             const statusCode = error.message.includes('Must collect') || error.message.includes('Already claimed') ? 400 : 500;
-            res.status(statusCode).json({ 
-                status: 'error', 
-                message: statusCode === 400 ? error.message : 'Server error' 
+            res.status(statusCode).json({
+                status: 'error',
+                message: statusCode === 400 ? error.message : 'Server error'
             });
         });
 });

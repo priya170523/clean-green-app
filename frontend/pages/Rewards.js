@@ -8,7 +8,8 @@ export default function Rewards({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [rewards, setRewards] = useState([]);
   const [showWheel, setShowWheel] = useState(false);
-  const [firstTimeCoupon, setFirstTimeCoupon] = useState(null);
+  const [canSpin, setCanSpin] = useState(false);
+  const [isSpinning, setIsSpinning] = useState(false);
   const [earnedRewards, setEarnedRewards] = useState([]);
   const [totalPoints, setTotalPoints] = useState(0);
   const [currentLevel, setCurrentLevel] = useState(1);
@@ -22,24 +23,44 @@ export default function Rewards({ navigation }) {
   const loadRewards = async () => {
     try {
       setLoading(true);
-      const [rewardsRes, progressRes] = await Promise.all([
+      const [rewardsRes, earnedRes, progressRes] = await Promise.all([
         rewardAPI.getRewards(1, 20, 'active'),
+        rewardAPI.getRewards(1, 20, 'earned'),
         rewardAPI.getProgress()
       ]);
 
       if (rewardsRes.status === 'success') {
         setRewards(rewardsRes.data.rewards || rewardsRes.data || []);
-        setEarnedRewards(rewardsRes.data.earned || []);
+      }
+
+      if (earnedRes.status === 'success') {
+        setEarnedRewards(earnedRes.data.rewards || earnedRes.data || []);
       }
 
       if (progressRes.status === 'success') {
-        setFirstTimeCoupon(progressRes.data.firstTimeCoupon);
         setTotalPoints(progressRes.data.totalPoints || 0);
         setCurrentLevel(progressRes.data.currentLevel || 1);
 
-        // Show wheel if can spin (after every 2kg cycle)
-        if (progressRes.data.canSpin) {
-          setShowWheel(true);
+        // Show wheel only if user has submitted waste and hasn't spun yet
+        const canSpinNow = progressRes.data.canSpin;
+        setShowWheel(canSpinNow);
+        setCanSpin(canSpinNow);
+
+        // If there's a first-time coupon, add it to earned rewards
+        if (progressRes.data.firstTimeCoupon) {
+          const firstTimeCouponReward = {
+            _id: `firsttime_${Date.now()}`,
+            title: 'First-Time Pickup Bonus',
+            description: 'Welcome bonus for your first waste submission!',
+            couponCode: progressRes.data.firstTimeCoupon.code,
+            discount: '₹50 OFF',
+            type: 'first_time',
+            expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+          };
+          setEarnedRewards(prev => [
+            ...prev.filter(r => r.type !== 'first_time'), // Remove any existing first-time coupon
+            firstTimeCouponReward
+          ]);
         }
 
         const levelInfo = getLevelAndNext(progressRes.data.totalPoints || 0);
@@ -77,16 +98,33 @@ export default function Rewards({ navigation }) {
   };
 
   const handleSpinComplete = async (result) => {
+    if (isSpinning || !canSpin) return; // Prevent multiple spins
+    
     try {
-      const response = await rewardAPI.claimWheelReward(result);
+      setIsSpinning(true); // Lock spinning while API call is in progress
+      setCanSpin(false); // Immediately disable spin button
+      
+      const response = await rewardAPI.claimWheelReward({ value: result.value, type: result.type });
       if (response.status === 'success') {
-        setEarnedRewards(prev => [...prev, response.data]);
-        setShowWheel(false);
-        loadRewards(); // Reload to update progress
+        // Add the new reward to earned list immediately
+        const newReward = {
+          ...response.data,
+          title: `Spin Reward: ${result.type === 'money' ? `₹${result.value} OFF` : `${result.value} Seeds`}`,
+          description: `You won ${result.type === 'money' ? `₹${result.value}` : `${result.value} Seeds`}!`,
+          type: 'spin_reward'
+        };
+        setEarnedRewards(prev => [...prev, newReward]);
+        setShowWheel(false); // Hide wheel immediately after successful spin
+        setCanSpin(false); // Ensure spin is locked
+        loadRewards(); // Reload to update progress and confirm backend state
+        Alert.alert('Congratulations!', `You won ${result.type === 'money' ? `₹${result.value}` : `${result.value} Seeds`}!\nCheck your rewards list for details.`);
       }
     } catch (error) {
       console.error('Error claiming wheel reward:', error);
-      Alert.alert('Error', 'Failed to claim reward');
+      Alert.alert('Error', 'Failed to claim reward. Please try again.');
+      setCanSpin(true); // Re-enable spinning on error
+    } finally {
+      setIsSpinning(false); // Always reset spinning state
     }
   };
 
@@ -120,41 +158,54 @@ export default function Rewards({ navigation }) {
           </View>
         </View>
 
-        {/* First Time Coupon */}
-        {firstTimeCoupon && (
-          <View style={styles.couponContainer}>
-            <Text style={styles.couponTitle}>First-Time Pickup Coupon</Text>
-            <Text style={styles.couponValue}>₹50 OFF</Text>
-            <Text style={styles.couponCode}>Code: {firstTimeCoupon.code}</Text>
-          </View>
-        )}
-
         {/* Spinning Wheel */}
         {showWheel && (
           <View style={styles.wheelContainer}>
-            <Text style={styles.wheelTitle}>Congratulations! Spin the wheel to claim your reward!</Text>
-            <SpinningWheel onSpinComplete={handleSpinComplete} />
+            <Text style={styles.wheelTitle}>Spin the wheel to claim your reward!</Text>
+            <SpinningWheel 
+              onSpinComplete={handleSpinComplete} 
+              disabled={!canSpin || isSpinning} 
+            />
+            <Text style={styles.wheelInfoText}>
+              {!canSpin
+                ? 'Spin is locked. Submit waste to unlock, or you have already spun for this cycle.'
+                : isSpinning
+                ? 'Processing your spin...'
+                : 'Spin the wheel to win rewards! (Unlocked after submitting waste)'}
+            </Text>
           </View>
         )}
 
-        {/* Rewards List */}
+        {/* Rewards List - Showing Earned Rewards */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Your Rewards</Text>
+          <Text style={styles.sectionTitle}>Your Earned Rewards</Text>
           {loading ? (
             <ActivityIndicator />
           ) : (
             <View style={styles.rewardsContainer}>
-              {rewards.length === 0 ? (
-                <Text style={{ color: '#666' }}>No rewards yet.</Text>
+              {earnedRewards.length === 0 ? (
+                <Text style={{ color: '#666' }}>No earned rewards yet. Submit waste to unlock spins and rewards!</Text>
               ) : (
-                rewards.map((reward) => (
-                  <View key={reward._id} style={styles.rewardItemColumn}>
+                earnedRewards.map((reward) => (
+                  <View key={reward._id || reward.id} style={styles.rewardItemColumn}>
                     <Text style={styles.rewardDescription}>{reward.title}</Text>
                     <Text style={styles.rewardDetail}>{reward.description}</Text>
-                    <View style={styles.couponCardRow}>
-                      <Text style={styles.couponText}>{reward.couponCode}</Text>
-                    </View>
-                    <TouchableOpacity style={styles.redeemButtonFull} onPress={() => Alert.alert('Redeem', 'Use this coupon at checkout')}>
+                    {reward.couponCode && (
+                      <View style={styles.couponCardRow}>
+                        <Text style={styles.couponText}>Code: {reward.couponCode}</Text>
+                      </View>
+                    )}
+                    {reward.discount && (
+                      <Text style={styles.rewardDetail}>Discount: {reward.discount}</Text>
+                    )}
+                    {reward.expiryDate && (
+                      <Text style={styles.rewardDetail}>Expires: {new Date(reward.expiryDate).toLocaleDateString()}</Text>
+                    )}
+                    <TouchableOpacity 
+                      style={styles.redeemButtonFull} 
+                      onPress={() => Alert.alert('Redeem', `Use coupon ${reward.couponCode || 'reward'} at checkout for ${reward.discount || 'your prize'}`)}
+                      disabled={!reward.couponCode}
+                    >
                       <Text style={styles.redeemButtonText}>Redeem</Text>
                     </TouchableOpacity>
                   </View>

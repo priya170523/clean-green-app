@@ -410,8 +410,8 @@ export const rewardAPI = {
   },
 
   // Claim wheel reward
-  claimWheelReward: async (result) => {
-    const response = await api.post('/progress/wheel-reward', { result });
+  claimWheelReward: async ({ value, type }) => {
+    const response = await api.post('/progress/wheel-reward', { value, type });
     return response.data;
   },
 

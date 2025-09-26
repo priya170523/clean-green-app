@@ -2,25 +2,24 @@ import React, { useRef, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Image } from 'react-native';
 
 const SEGMENTS = [
-  { id: 1, type: 'money', value: 2, color: '#FF0000' }, // Red
-  { id: 2, type: 'seeds', value: 1, color: '#FFD700' }, // Yellow
-  { id: 3, type: 'money', value: 3, color: '#00FF00' }, // Green
-  { id: 4, type: 'money', value: 4, color: '#0000FF' }, // Blue
-  { id: 5, type: 'seeds', value: 2, color: '#00FFFF' }, // Cyan
-  { id: 6, type: 'money', value: 2, color: '#800080' }, // Purple
-  { id: 7, type: 'money', value: 3, color: '#FFA500' }, // Orange
-  { id: 8, type: 'seeds', value: 1, color: '#FF69B4' }  // Pink
+  { id: 1, type: 'plant', value: 1, label: 'Plant', color: '#228B22' }, // Forest Green
+  { id: 2, type: 'seeds', value: 1, label: 'Seeds', color: '#FFD700' }, // Gold
+  { id: 3, type: 'vermicompost', value: 1, label: 'Vermicompost', color: '#8B4513' }, // Saddle Brown
+  { id: 4, type: 'cashback', value: 50, label: '₹50 Cashback', color: '#FF0000' }, // Red
+  { id: 5, type: 'coupon', value: 100, label: '₹100 Coupon', color: '#0000FF' }, // Blue
+  { id: 6, type: 'gift', value: 1, label: 'Gift', color: '#800080' }  // Purple
 ];
 
 const SEGMENT_DEGREE = 360 / SEGMENTS.length;
 
-export default function SpinningWheel({ onSpinComplete }) {
+
+export default function SpinningWheel({ onSpinComplete, disabled }) {
   const [isSpinning, setIsSpinning] = useState(false);
   const [result, setResult] = useState(null);
   const spinValue = useRef(new Animated.Value(0)).current;
 
   const spin = () => {
-    if (isSpinning) return;
+    if (isSpinning || disabled) return;
     setIsSpinning(true);
     setResult(null);
 
@@ -69,12 +68,12 @@ export default function SpinningWheel({ onSpinComplete }) {
 
       {/* Spin button */}
       <TouchableOpacity
-        style={[styles.spinButton, isSpinning && styles.spinButtonDisabled]}
+        style={[styles.spinButton, (isSpinning || disabled) && styles.spinButtonDisabled]}
         onPress={spin}
-        disabled={isSpinning}
+        disabled={isSpinning || disabled}
       >
         <Text style={styles.spinButtonText}>
-          {isSpinning ? 'Spinning...' : 'SPIN!'}
+          {disabled ? 'Spin Locked' : (isSpinning ? 'Spinning...' : 'SPIN!')}
         </Text>
       </TouchableOpacity>
 
@@ -82,7 +81,7 @@ export default function SpinningWheel({ onSpinComplete }) {
       {result && (
         <View style={styles.resultContainer}>
           <Text style={styles.resultText}>
-            You won: {result.type === 'money' ? `₹${result.value}` : 'Seeds'}!
+            You won: {result.label}!
           </Text>
         </View>
       )}
