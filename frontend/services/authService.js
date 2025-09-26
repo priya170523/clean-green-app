@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authAPI, apiUtils } from './apiService';
+import { notificationService } from './notificationService';
 
 // Authentication service with backend integration
 export const authService = {
@@ -15,6 +16,12 @@ export const authService = {
 
         // Store auth data
         await apiUtils.storeAuthData(token, user);
+
+        // Initialize socket connection
+        notificationService.init(user._id);
+
+        // Join user room for notifications
+        notificationService.joinUserRoom(user._id);
 
         console.log(`${user.role} login successful`);
         return { success: true, user, token };
@@ -56,6 +63,9 @@ export const authService = {
   // Logout function
   logout: async () => {
     try {
+      // Disconnect socket before clearing auth data
+      notificationService.disconnect();
+
       await apiUtils.clearAuthData();
       console.log('Logout successful');
       return { success: true };

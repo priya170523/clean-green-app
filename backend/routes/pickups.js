@@ -427,6 +427,7 @@ router.put('/:id/status', protect, restrictTo('delivery'), async (req, res) => {
     // On completion, compute earnings and record transaction
     if (status === 'completed') {
       pickup.calculateEarnings();
+      pickup.calculatePoints();
 
       // Map wasteType to transaction wasteDetails type
       const wasteTypeMapping = {
@@ -444,6 +445,7 @@ router.put('/:id/status', protect, restrictTo('delivery'), async (req, res) => {
         quantity = pickup.wasteDetails.foodBoxes || quantity;
       }
 
+      // Create transaction for delivery agent earnings
       await Transaction.create({
         user: req.user._id,
         type: 'earning',
@@ -458,11 +460,44 @@ router.put('/:id/status', protect, restrictTo('delivery'), async (req, res) => {
         }
       });
 
+      // Create transaction for user points
+      await Transaction.create({
+        user: pickup.user._id,
+        type: 'points',
+        amount: 0, // Points are stored in points field
+        points: pickup.points,
+        description: `Points earned for pickup ${pickup._id}`,
+        status: 'completed',
+        referenceId: `PK${pickup._id}`,
+        wasteDetails: {
+          type: wasteTypeMapping[pickup.wasteType] || 'mixed',
+          quantity: quantity,
+          pointsMultiplier: 1
+        }
+      });
+
+      // Update user's total points
+      const user = await User.findById(pickup.user._id);
+      if (user) {
+        user.totalPoints = (user.totalPoints || 0) + pickup.points;
+        await user.save();
+      }
+
+      // Update progress for spin eligibility
+      try {
+        await User.findByIdAndUpdate(pickup.user._id, {
+          $inc: { totalWaste: quantity }
+        });
+      } catch (progressError) {
+        console.error('Error updating progress:', progressError);
+      }
+
       // Notify user via socket
       if (req.io) {
         req.io.to(`user-${pickup.user._id}`).emit('pickup-completed', {
           pickup: pickup.toObject(),
-          message: 'Your pickup has been completed successfully!'
+          message: 'Your pickup has been completed successfully!',
+          points: pickup.points
         });
       }
     }

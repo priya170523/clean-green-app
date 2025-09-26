@@ -80,6 +80,30 @@ export const notificationService = {
     }
   },
 
+  // Listen for pickup accepted
+  onPickupAccepted: (callback) => {
+    if (socket) {
+      socket.on('pickup-accepted', (data) => {
+        console.log('Pickup accepted:', data);
+        if (callback) {
+          callback(data);
+        }
+      });
+    }
+  },
+
+  // Listen for pickup completed
+  onPickupCompleted: (callback) => {
+    if (socket) {
+      socket.on('pickup-completed', (data) => {
+        console.log('Pickup completed:', data);
+        if (callback) {
+          callback(data);
+        }
+      });
+    }
+  },
+
   // Send notification to user
   sendNotification: (userId, notification) => {
     if (socket) {

@@ -172,16 +172,33 @@ export default function DeliveryRoutePage({ navigation, route }) {
           routeInfo.distance
         ) : 0;
 
+      // Update pickup status
       await pickupAPI.updatePickupStatus(pickupData._id, 'completed', null, 'Pickup completed', distance);
       setPickupStatus('picked');
 
-      // Navigate to WarehouseNavigation with pickup location
-      navigation.navigate('WarehouseNavigation', {
-        pickupData: {
-          ...pickupData,
-          pickupLocation: pickupLocation || currentLocation
-        }
-      });
+      // Update user progress for spin eligibility
+      try {
+        await api.post('/api/progress/update', {
+          pickupId: pickupData._id,
+          weight: pickupData.wasteDetails?.quantity || 0
+        });
+      } catch (progressError) {
+        console.error('Error updating progress:', progressError);
+      }
+
+      // Show thank you message
+      setShowThankYou(true);
+
+      // Wait for 2 seconds to show the thank you message
+      setTimeout(() => {
+        // Navigate to WarehouseNavigation with pickup location
+        navigation.navigate('WarehouseNavigation', {
+          pickupData: {
+            ...pickupData,
+            pickupLocation: pickupLocation || currentLocation
+          }
+        });
+      }, 2000);
     } catch (error) {
       console.error('Error updating pickup status:', error);
       Alert.alert('Error', 'Failed to update pickup status');

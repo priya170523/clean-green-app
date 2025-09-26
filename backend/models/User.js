@@ -65,6 +65,18 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  cycleProgress: {
+    type: Number,
+    default: 0
+  },
+  wheelSpunThisCycle: {
+    type: Boolean,
+    default: false
+  },
+  firstPickupCouponUsed: {
+    type: Boolean,
+    default: false
+  },
   // Delivery specific fields
   vehicleType: {
     type: String,

@@ -14,16 +14,53 @@ router.post('/update', protect, async function(req, res) {
         if (!pickupId || !weight) {
             return res.status(400).json({ status: 'error', message: 'pickupId and weight required' });
         }
-        // Find user and update progress (add weight to totalWaste or similar logic)
+
+        // Find user
         const user = await User.findById(req.user.id);
         if (!user) {
             return res.status(404).json({ status: 'error', message: 'User not found' });
         }
-        // Optionally, update a progress field or add a transaction
-        // Here, we just increment a progress field for demo
-        user.totalWaste = (user.totalWaste || 0) + Number(weight);
-        await user.save();
-        res.json({ status: 'success', message: 'Progress updated', data: { totalWaste: user.totalWaste } });
+
+        // Update cycle progress
+        user.cycleProgress = (user.cycleProgress || 0) + Number(weight);
+
+        // Calculate points based on waste type and weight
+        const { points } = calculatePoints('mixed', Number(weight)); // Default to mixed type
+
+        // Create transaction record
+        const transaction = new Transaction({
+            user: user._id,
+            type: 'earning',
+            amount: points, // Points as amount
+            description: `Earned ${points} points for ${weight}kg waste`,
+            pickup: pickupId,
+            status: 'completed',
+            points: points,
+            wasteDetails: {
+                type: 'mixed',
+                quantity: Number(weight)
+            }
+        });
+
+        // Update user's total points
+        user.totalPoints = (user.totalPoints || 0) + points;
+        
+        // Save both user and transaction
+        await Promise.all([
+            user.save(),
+            transaction.save()
+        ]);
+
+        res.json({ 
+            status: 'success', 
+            message: 'Progress updated', 
+            data: { 
+                totalWaste: user.totalWaste,
+                totalPoints: user.totalPoints,
+                earnedPoints: points,
+                canSpin: user.totalWaste >= 2 && !user.achievements?.includes('2kg_wheel_spun')
+            } 
+        });
     } catch (error) {
         console.error('Error updating progress:', error);
         res.status(500).json({ status: 'error', message: 'Server error' });

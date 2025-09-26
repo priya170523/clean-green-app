@@ -7,6 +7,7 @@ import LineChart from '../components/LineChart';
 import { LinearGradient } from 'expo-linear-gradient';
 import { userAPI, addressAPI, pickupAPI } from '../services/apiService';
 import { authService } from '../services/authService';
+import { notificationService } from '../services/notificationService';
 
 const { width } = Dimensions.get('window');
 
@@ -45,6 +46,25 @@ export default function Dashboard({ navigation }) {
 
   useEffect(() => {
     loadDashboardData();
+
+    // Listen for pickup notifications
+    const onPickupAccepted = (data) => {
+      Alert.alert('Pickup Accepted!', `Your pickup has been accepted by ${data.agent?.name || 'an agent'}.`);
+      loadDashboardData(); // Refresh data
+    };
+
+    const onPickupCompleted = (data) => {
+      Alert.alert('Pickup Completed!', `Your pickup has been completed! You earned ${data.points || 0} points.`);
+      loadDashboardData(); // Refresh data
+    };
+
+    notificationService.onPickupAccepted(onPickupAccepted);
+    notificationService.onPickupCompleted(onPickupCompleted);
+
+    // Cleanup listeners on unmount
+    return () => {
+      // Note: notificationService doesn't have removeListener, but since it's global, it's fine
+    };
   }, []);
 
   const loadDashboardData = async () => {
@@ -100,24 +120,31 @@ export default function Dashboard({ navigation }) {
   const stats = [
     {
       label: 'Total Waste Submitted',
-      value: dashboardData?.stats?.totalPickups?.toString() || '0',
+      value: `${dashboardData?.stats?.totalWaste || 0} kg`,
       icon: '📤',
       color: '#4CAF50'
     },
     {
       label: 'Total Points',
-      value: dashboardData?.stats?.totalPoints ? (dashboardData.stats.totalPoints + 150).toString() : '150',
+      value: dashboardData?.stats?.totalPoints?.toString() || '0',
       icon: '⭐',
       color: '#FF9800'
     },
+    {
+      label: 'Number of Submissions',
+      value: dashboardData?.stats?.totalSubmissions?.toString() || '0',
+      icon: '📊',
+      color: '#2196F3'
+    }
   ];
 
   // Recent contributions: latest accepted
   const latestAccepted = (userPickups || []).filter(p => p.status === 'accepted' || p.status === 'completed').sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt))[0];
   const recentContributions = latestAccepted ? [{
-    type: 'Accepted',
+    type: latestAccepted.wasteDetails?.type || 'Mixed',
     status: 'upward',
     date: new Date(latestAccepted.createdAt).toLocaleDateString(),
+    waste: `${latestAccepted.wasteDetails?.quantity || 0} kg`,
     points: `+${latestAccepted.points || 0}`
   }] : [];
 
@@ -127,7 +154,8 @@ export default function Dashboard({ navigation }) {
   // Detailed history from pickups
   const detailedHistory = (userPickups || []).slice(0, 5).map(p => ({
     date: new Date(p.createdAt).toLocaleString(),
-    action: `Submitted ${p.wasteType} waste${p.priority === 'scheduled' ? ` (Scheduled ${p.scheduledTime || ''})` : ''}`,
+    action: `${(p.wasteDetails?.type || 'Mixed').toUpperCase()} waste submitted`,
+    amount: `${p.wasteDetails?.quantity || 0} kg`,
     points: p.points ? `+${p.points}` : '0',
     status: p.status
   }));

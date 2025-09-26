@@ -64,7 +64,9 @@ export default function DeliveryEarnings({ navigation }) {
             ₹{user?.earnings?.total || 0}
           </Text>
           <Text style={styles.totalEarningsSubtext}>
-            From {user?.completedPickups || 0} completed pickups
+            Total Waste Submitted: {user?.totalWaste || 0} kg
+            {user?.completedPickups ? `
+Total Pickups: ${user.completedPickups}` : ''}
           </Text>
         </View>
 
@@ -73,8 +75,8 @@ export default function DeliveryEarnings({ navigation }) {
           <Text style={styles.sectionTitle}>Today's Earnings</Text>
           <View style={styles.earningsCard}>
             <View style={styles.earningsRow}>
-              <Text style={styles.earningsLabel}>Pickups Completed:</Text>
-              <Text style={styles.earningsValue}>{earningsData?.todayPickups || 0}</Text>
+              <Text style={styles.earningsLabel}>Today's Waste:</Text>
+              <Text style={styles.earningsValue}>{earningsData?.todayWaste || 0} kg</Text>
             </View>
             <View style={styles.earningsRow}>
               <Text style={styles.earningsLabel}>Amount Earned:</Text>
@@ -88,8 +90,8 @@ export default function DeliveryEarnings({ navigation }) {
           <Text style={styles.sectionTitle}>This Week's Earnings</Text>
           <View style={styles.earningsCard}>
             <View style={styles.earningsRow}>
-              <Text style={styles.earningsLabel}>Pickups Completed:</Text>
-              <Text style={styles.earningsValue}>{earningsData?.weekPickups || 0}</Text>
+              <Text style={styles.earningsLabel}>Week's Waste:</Text>
+              <Text style={styles.earningsValue}>{earningsData?.weekWaste || 0} kg</Text>
             </View>
             <View style={styles.earningsRow}>
               <Text style={styles.earningsLabel}>Amount Earned:</Text>
