@@ -7,6 +7,29 @@ const Reward = require('../models/Reward');
 
 const { calculatePoints } = require('../utils/pointsCalculator');
 
+// Update user progress after delivery (for spin)
+router.post('/update', protect, async function(req, res) {
+    try {
+        const { pickupId, weight } = req.body;
+        if (!pickupId || !weight) {
+            return res.status(400).json({ status: 'error', message: 'pickupId and weight required' });
+        }
+        // Find user and update progress (add weight to totalWaste or similar logic)
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ status: 'error', message: 'User not found' });
+        }
+        // Optionally, update a progress field or add a transaction
+        // Here, we just increment a progress field for demo
+        user.totalWaste = (user.totalWaste || 0) + Number(weight);
+        await user.save();
+        res.json({ status: 'success', message: 'Progress updated', data: { totalWaste: user.totalWaste } });
+    } catch (error) {
+        console.error('Error updating progress:', error);
+        res.status(500).json({ status: 'error', message: 'Server error' });
+    }
+});
+
 // Get user's progress including total waste collected and rewards eligibility
 router.get('/', protect, function(req, res) {
     Transaction.find({ user: req.user.id })

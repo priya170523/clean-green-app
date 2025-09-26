@@ -9,8 +9,8 @@ export default function WarehouseNavigation({ navigation, route }) {
   const { pickupData } = route.params || {};
   const [currentLocation, setCurrentLocation] = useState(null);
   const [warehouseLocation] = useState({
-    latitude: 12.9800, // Warehouse location
-    longitude: 77.6100,
+    latitude: 16.538994, // Warehouse location
+    longitude: 81.523952,
   });
   const [hasReached, setHasReached] = useState(false);
   const [showSubmittedButton, setShowSubmittedButton] = useState(false);
@@ -293,7 +293,7 @@ export default function WarehouseNavigation({ navigation, route }) {
         <View style={styles.pickupInfo}>
           <Text style={styles.pickupTitle}>Pickup Details</Text>
           <Text style={styles.pickupText}>Type: {pickupData.type}</Text>
-          <Text style={styles.pickupText}>Weight: {pickupData.weight}</Text>
+          <Text style={styles.pickupText}>Weight: {pickupData.estimatedWeight ? pickupData.estimatedWeight * 1000 : 0} grams</Text>
           <Text style={styles.pickupText}>Customer: {pickupData.customerName}</Text>
         </View>
       )}

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { userAPI } from '../services/apiService';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
 
 export default function AfterScheduling({ navigation, route }) {
@@ -15,6 +16,7 @@ export default function AfterScheduling({ navigation, route }) {
   } = route.params || {};
 
   const [statusMessage, setStatusMessage] = useState('Waiting for admin approval...');
+  const [showThankYou, setShowThankYou] = useState(false);
   const [loading, setLoading] = useState(true);
   const [coupon, setCoupon] = useState(null);
   const [pickupStatus, setPickupStatus] = useState('pending');
@@ -67,8 +69,21 @@ export default function AfterScheduling({ navigation, route }) {
     });
   };
 
-  const handleHome = () => {
-    navigation.navigate('Dashboard');
+  const handleHome = async () => {
+    // Add delivered weight to user progress for spin
+    try {
+      if (estimatedWeight && pickupId) {
+        await userAPI.getProgress(); // Optionally fetch current progress
+        await userAPI.updateProgress(pickupId, estimatedWeight); // You may need to implement this API if not present
+      }
+    } catch (e) {
+      // Ignore progress update errors for now
+    }
+    setShowThankYou(true);
+    setTimeout(() => {
+      setShowThankYou(false);
+      navigation.navigate('Dashboard');
+    }, 2000);
   };
 
   const handleCallExecutive = () => {
@@ -208,14 +223,16 @@ export default function AfterScheduling({ navigation, route }) {
         </View>
 
         {/* Thank You Message */}
-        <View style={styles.thankYouContainer}>
-          <Text style={styles.thankYouText}>
-            Thank you for being a part of Green India! 🌱
-          </Text>
-          <Text style={styles.thankYouSubText}>
-            Your contribution helps make our planet cleaner and greener.
-          </Text>
-        </View>
+        {showThankYou && (
+          <View style={styles.thankYouContainer}>
+            <Text style={styles.thankYouText}>
+              Thank you for being a part of Green India! 🌱
+            </Text>
+            <Text style={styles.thankYouSubText}>
+              Your contribution helps make our planet cleaner and greener.
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Bottom Navigation */}

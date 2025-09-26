@@ -175,14 +175,13 @@ export default function DeliveryRoutePage({ navigation, route }) {
       await pickupAPI.updatePickupStatus(pickupData._id, 'completed', null, 'Pickup completed', distance);
       setPickupStatus('picked');
 
-      // Show thank you overlay
-      setShowThankYou(true);
-
-      // Hide overlay and navigate after 2 seconds
-      setTimeout(() => {
-        setShowThankYou(false);
-        navigation.navigate('DeliveryMain', { screen: 'DeliveryDashboard' });
-      }, 2000);
+      // Navigate to WarehouseNavigation with pickup location
+      navigation.navigate('WarehouseNavigation', {
+        pickupData: {
+          ...pickupData,
+          pickupLocation: pickupLocation || currentLocation
+        }
+      });
     } catch (error) {
       console.error('Error updating pickup status:', error);
       Alert.alert('Error', 'Failed to update pickup status');

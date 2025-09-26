@@ -457,6 +457,14 @@ router.put('/:id/status', protect, restrictTo('delivery'), async (req, res) => {
           pointsMultiplier: 1
         }
       });
+
+      // Notify user via socket
+      if (req.io) {
+        req.io.to(`user-${pickup.user._id}`).emit('pickup-completed', {
+          pickup: pickup.toObject(),
+          message: 'Your pickup has been completed successfully!'
+        });
+      }
     }
 
     await pickup.save();

@@ -232,6 +232,12 @@ export const userAPI = {
     return response.data;
   },
 
+  // Update user progress after delivery (for spin)
+  updateProgress: async (pickupId, weight) => {
+    const response = await api.post('/progress/update', { pickupId, weight });
+    return response.data;
+  },
+
   // Update online status (for delivery agents)
   updateOnlineStatus: async (isOnline) => {
     const response = await api.put('/users/online-status', { isOnline });
