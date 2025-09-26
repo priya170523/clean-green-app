@@ -4,7 +4,6 @@ import { pickupAPI } from '../services/apiService';
 import { notificationService } from '../services/notificationService';
 
 export default function ScheduledPage({ navigation }) {
-  const [activeTab, setActiveTab] = useState('scheduled');
   const [liveSchedules, setLiveSchedules] = useState([]);
   const [scheduledHistory, setScheduledHistory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -100,7 +99,30 @@ export default function ScheduledPage({ navigation }) {
   };
 
   const handleViewHistory = (history) => {
-    Alert.alert('History Details', `Type: ${history.type}\nWeight: ${history.weight}\nDate: ${history.date}\nStatus: ${history.status}`);
+    const statusLabels = {
+      awaiting_agent: 'Awaiting Agent',
+      accepted: 'Agent Assigned',
+      in_progress: 'In Progress',
+      completed: 'Completed',
+      admin_rejected: 'Rejected',
+      cancelled: 'Cancelled'
+    };
+
+    Alert.alert('History Details',
+      `Status: ${statusLabels[history.status] || history.status}
+` +
+      `Type: ${history.wasteType || 'Mixed'}
+` +
+      `Weight: ${history.estimatedWeight || 0} kg
+` +
+      `Completed on: ${formatDate(history.completedAt || history.scheduledDate || history.createdAt)}
+` +
+      `Address: ${history.address?.fullAddress || 'Not specified'}
+` +
+      (history.agent ? `Agent: ${history.agent.name || 'Not assigned'}
+` : '') +
+      (history.notes ? `Notes: ${history.notes}` : '')
+    );
   };
 
   const onRefresh = React.useCallback(() => {
@@ -126,16 +148,8 @@ export default function ScheduledPage({ navigation }) {
         <TouchableOpacity style={styles.profileIcon} onPress={handleProfile}>
           <Text style={styles.profileIconText}>👤</Text>
         </TouchableOpacity>
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[styles.tab, activeTab === 'scheduled' && styles.activeTab]}
-            onPress={() => setActiveTab('scheduled')}
-          >
-            <Text style={[styles.tabText, activeTab === 'scheduled' && styles.activeTabText]}>
-              Scheduled
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.headerTitle}>My Schedules</Text>
+        <View style={styles.placeholder} />
       </View>
 
       <View style={styles.content}>
@@ -197,33 +211,49 @@ export default function ScheduledPage({ navigation }) {
 
         {/* Scheduled History Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Scheduled history</Text>
+          <Text style={styles.sectionTitle}>History</Text>
           {loading ? (
             <Text style={styles.loadingText}>Loading history...</Text>
           ) : scheduledHistory.length > 0 ? (
-            <View style={styles.historyContainer}>
-              {scheduledHistory.map((history) => (
-                <TouchableOpacity
-                  key={history._id || history.id}
-                  style={styles.historyItem}
-                  onPress={() => handleViewHistory(history)}
-                >
-                  <View style={styles.historyInfo}>
-                    <Text style={styles.historyType}>{history.wasteType || history.type}</Text>
-                    <Text style={styles.historyWeight}>{history.weight} kg</Text>
-                    <Text style={styles.historyDate}>
-                      {history.scheduledDate ? new Date(history.scheduledDate).toLocaleDateString() : history.date}
+            scheduledHistory.map((history) => (
+              <View key={history._id || history.id} style={styles.scheduleCard}>
+                <View style={styles.scheduleInfo}>
+                  <Text style={styles.scheduleType}>
+                    {history.wasteType?.toUpperCase() || 'MIXED WASTE'}
+                  </Text>
+                  <Text style={styles.scheduleWeight}>
+                    Weight: {history.estimatedWeight || 0} kg
+                  </Text>
+                  <Text style={styles.scheduleTime}>
+                    {formatDate(history.completedAt || history.scheduledDate || history.createdAt)}
+                  </Text>
+                  <View style={[
+                    styles.statusBadge,
+                    {
+                      backgroundColor: {
+                        'completed': '#4CAF50',
+                        'admin_rejected': '#F44336',
+                        'cancelled': '#9E9E9E'
+                      }[history.status] || '#FF5722'
+                    }
+                  ]}>
+                    <Text style={styles.statusText}>
+                      {{
+                        'completed': 'Completed',
+                        'admin_rejected': 'Rejected',
+                        'cancelled': 'Cancelled'
+                      }[history.status] || 'Unknown'}
                     </Text>
                   </View>
-                  <View style={[
-                    styles.historyStatus,
-                    { backgroundColor: history.status === 'Completed' || history.status === 'completed' ? '#4CAF50' : '#FF5722' }
-                  ]}>
-                    <Text style={styles.historyStatusText}>{history.status || 'Unknown'}</Text>
-                  </View>
+                </View>
+                <TouchableOpacity
+                  style={styles.viewButton}
+                  onPress={() => handleViewHistory(history)}
+                >
+                  <Text style={styles.viewButtonText}>view</Text>
                 </TouchableOpacity>
-              ))}
-            </View>
+              </View>
+            ))
           ) : (
             <Text style={styles.emptyText}>No history found</Text>
           )}
@@ -269,27 +299,13 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#2E7D32',
   },
-  tabContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#E8F5E9',
-    borderRadius: 20,
-    padding: 4,
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1B5E20',
   },
-  tab: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
-  },
-  activeTab: {
-    backgroundColor: '#4CAF50',
-  },
-  tabText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#666',
-  },
-  activeTabText: {
-    color: '#fff',
+  placeholder: {
+    width: 50,
   },
   content: {
     flex: 1,
@@ -371,52 +387,6 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '600',
-  },
-  historyContainer: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  historyItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
-  historyInfo: {
-    flex: 1,
-  },
-  historyType: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1B5E20',
-    marginBottom: 2,
-  },
-  historyWeight: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 2,
-  },
-  historyDate: {
-    fontSize: 14,
-    color: '#666',
-  },
-  historyStatus: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  historyStatusText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#fff',
   },
   footer: {
     alignItems: 'center',

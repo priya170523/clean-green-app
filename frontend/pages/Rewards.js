@@ -7,13 +7,13 @@ import * as Progress from 'react-native-progress';
 export default function Rewards({ navigation }) {
   const [loading, setLoading] = useState(true);
   const [rewards, setRewards] = useState([]);
-  const [totalWaste, setTotalWaste] = useState(0);
   const [showWheel, setShowWheel] = useState(false);
   const [firstTimeCoupon, setFirstTimeCoupon] = useState(null);
   const [earnedRewards, setEarnedRewards] = useState([]);
   const [totalPoints, setTotalPoints] = useState(0);
-  const [userLevel, setUserLevel] = useState(1);
-  const [pointsToNextLevel, setPointsToNextLevel] = useState(100);
+  const [currentLevel, setCurrentLevel] = useState(1);
+  const [nextThreshold, setNextThreshold] = useState(200);
+  const [levelProgress, setLevelProgress] = useState(0);
 
   useEffect(() => {
     loadRewards();
@@ -33,19 +33,18 @@ export default function Rewards({ navigation }) {
       }
 
       if (progressRes.status === 'success') {
-        setTotalWaste(progressRes.data.totalWaste || 0);
         setFirstTimeCoupon(progressRes.data.firstTimeCoupon);
-        setTotalPoints(progressRes.data.points || 0);
-        
-        // Calculate level based on points
-        const level = Math.floor(progressRes.data.points / 100) + 1;
-        setUserLevel(level);
-        setPointsToNextLevel((level * 100) - progressRes.data.points);
-        
-        // Show wheel if 2kg milestone reached
-        if (progressRes.data.totalWaste >= 2 && !progressRes.data.wheelSpun) {
+        setTotalPoints(progressRes.data.totalPoints || 0);
+        setCurrentLevel(progressRes.data.currentLevel || 1);
+
+        // Show wheel if spin is available after every submission
+        if (progressRes.data.spinAvailable) {
           setShowWheel(true);
         }
+
+        const levelInfo = getLevelAndNext(progressRes.data.totalPoints || 0);
+        setNextThreshold(levelInfo.nextThreshold);
+        setLevelProgress(levelInfo.progress);
       }
     } catch (e) {
       Alert.alert('Error', 'Failed to load rewards');
@@ -53,6 +52,21 @@ export default function Rewards({ navigation }) {
       setLoading(false);
     }
   };
+
+  function getLevelAndNext(points) {
+    let level = 1;
+    let threshold = 200;
+    let prevThreshold = 0;
+
+    while (points > threshold && level < 10) {
+      prevThreshold = threshold;
+      threshold *= 2;
+      level++;
+    }
+
+    const progress = level === 1 ? points / threshold : (points - prevThreshold) / (threshold - prevThreshold);
+    return { level, nextThreshold: threshold, progress: Math.min(progress, 1) };
+  }
 
   const handleHome = () => {
     navigation.navigate('Dashboard');
@@ -68,6 +82,7 @@ export default function Rewards({ navigation }) {
       if (response.status === 'success') {
         setEarnedRewards(prev => [...prev, response.data]);
         setShowWheel(false);
+        loadRewards(); // Reload to update progress
       }
     } catch (error) {
       console.error('Error claiming wheel reward:', error);
@@ -87,43 +102,21 @@ export default function Rewards({ navigation }) {
       </View>
 
       <View style={styles.content}>
-        {/* Points and Level Section */}
-        <View style={styles.pointsCard}>
-          <View style={styles.pointsHeader}>
-            <Text style={styles.pointsTitle}>Green Points</Text>
-            <View style={styles.levelBadge}>
-              <Text style={styles.levelText}>Level {userLevel}</Text>
-            </View>
-          </View>
-          <Text style={styles.pointsValue}>{totalPoints}</Text>
-          <View style={styles.progressContainer}>
-            <Progress.Bar
-              progress={(100 - pointsToNextLevel) / 100}
-              width={null}
-              height={8}
-              color="#4CAF50"
-              unfilledColor="#E8F5E9"
-              borderWidth={0}
-            />
-            <Text style={styles.progressText}>{pointsToNextLevel} points to next level</Text>
-          </View>
-        </View>
-
-        {/* Waste Progress Section */}
+        {/* Level Progress Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Waste Collection Progress</Text>
-          <View style={styles.progressContainer}>
-            <Progress.Circle
-              size={120}
-              progress={Math.min(totalWaste / 2, 1)}
-              thickness={8}
-              color="#4CAF50"
+          <Text style={styles.sectionTitle}>Level Progress</Text>
+          <View style={styles.levelContainer}>
+            <Text style={styles.levelText}>Level {currentLevel}</Text>
+            <Progress.Bar
+              progress={levelProgress}
+              width={300}
+              height={10}
+              color="#9C27B0"
               unfilledColor="#E8F5E9"
               borderWidth={0}
-              showsText
-              formatText={() => `${totalWaste.toFixed(1)}kg`}
             />
-            <Text style={styles.targetText}>Target: 2kg</Text>
+            <Text style={styles.pointsText}>{totalPoints} / {nextThreshold} points</Text>
+            <Text style={styles.couponMention}>Level up to get a special coupon!</Text>
           </View>
         </View>
 
@@ -191,15 +184,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
-  },
-  progressContainer: {
-    alignItems: 'center',
-    marginVertical: 10,
-  },
-  progressText: {
-    marginTop: 5,
-    fontSize: 16,
-    color: '#666',
   },
   couponContainer: {
     backgroundColor: '#4CAF50',
@@ -347,5 +331,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#333',
+  },
+  levelContainer: {
+    alignItems: 'center',
+    marginVertical: 10,
+  },
+  levelText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#9C27B0',
+    marginBottom: 10,
+  },
+  pointsText: {
+    fontSize: 16,
+    color: '#666',
+    marginTop: 10,
+  },
+  couponMention: {
+    fontSize: 14,
+    color: '#4CAF50',
+    fontStyle: 'italic',
+    marginTop: 5,
   },
 });

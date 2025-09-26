@@ -13,7 +13,7 @@ const rewardSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['pickup_completion', 'milestone', 'special_achievement', 'referral'],
+    enum: ['pickup_completion', 'milestone', 'special_achievement', 'referral', 'level_up'],
     required: true
   },
   title: {

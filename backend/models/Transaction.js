@@ -55,7 +55,7 @@ const transactionSchema = new mongoose.Schema({
   wasteDetails: {
     type: {
       type: String,
-      enum: ['plastic', 'paper', 'organic', 'metal', 'glass', 'mixed'],
+      enum: ['plastic', 'paper', 'organic', 'metal', 'glass', 'mixed', 'bottles'],
       default: 'mixed'
     },
     quantity: {

@@ -424,83 +424,135 @@ router.put('/:id/status', protect, restrictTo('delivery'), async (req, res) => {
     }
     pickup.timeline.push({ status, timestamp: new Date(), location, notes });
 
-    // On completion, compute earnings and record transaction
-    if (status === 'completed') {
-      pickup.calculateEarnings();
-      pickup.calculatePoints();
+      // On completion, compute earnings and record transaction
+      if (status === 'completed') {
+        // Map wasteType to transaction wasteDetails type
+        const wasteTypeMapping = {
+          'food': 'organic',
+          'bottles': 'bottles',
+          'other': 'other',
+          'mixed': 'mixed'
+        };
 
-      // Map wasteType to transaction wasteDetails type
-      const wasteTypeMapping = {
-        'food': 'organic',
-        'bottles': 'plastic',
-        'other': 'mixed',
-        'mixed': 'mixed'
-      };
-
-      // Calculate quantity based on waste details
-      let quantity = pickup.estimatedWeight || 1; // Default to 1 if no weight
-      if (pickup.wasteType === 'bottles') {
-        quantity = pickup.wasteDetails.bottles || quantity;
-      } else if (pickup.wasteType === 'food') {
-        quantity = pickup.wasteDetails.foodBoxes || quantity;
-      }
-
-      // Create transaction for delivery agent earnings
-      await Transaction.create({
-        user: req.user._id,
-        type: 'earning',
-        amount: pickup.earnings,
-        description: `Pickup ${pickup._id} completed`,
-        status: 'completed',
-        referenceId: `PK${pickup._id}`,
-        wasteDetails: {
-          type: wasteTypeMapping[pickup.wasteType] || 'mixed',
-          quantity: quantity,
-          pointsMultiplier: 1
+        // Calculate quantity based on waste details
+        let quantity = pickup.estimatedWeight || 1; // Default to 1 if no weight
+        if (pickup.wasteType === 'bottles') {
+          quantity = pickup.wasteDetails.bottles || quantity;
+        } else if (pickup.wasteType === 'food') {
+          quantity = pickup.wasteDetails.foodBoxes || quantity;
         }
-      });
 
-      // Create transaction for user points
-      await Transaction.create({
-        user: pickup.user._id,
-        type: 'points',
-        amount: 0, // Points are stored in points field
-        points: pickup.points,
-        description: `Points earned for pickup ${pickup._id}`,
-        status: 'completed',
-        referenceId: `PK${pickup._id}`,
-        wasteDetails: {
-          type: wasteTypeMapping[pickup.wasteType] || 'mixed',
-          quantity: quantity,
-          pointsMultiplier: 1
+        const mappedWasteType = wasteTypeMapping[pickup.wasteType] || 'mixed';
+
+        // Calculate delivery earnings
+        const { earnings } = require('../utils/pointsCalculator').calculatePoints(mappedWasteType, quantity, 'delivery');
+
+        // Calculate user points
+        const { points } = require('../utils/pointsCalculator').calculatePoints(mappedWasteType, quantity, 'user');
+
+        // Find user to update cycleProgress
+        const user = await User.findById(pickup.user._id);
+        if (user) {
+          user.cycleProgress = (user.cycleProgress || 0) + quantity;
         }
-      });
 
-      // Update user's total points
-      const user = await User.findById(pickup.user._id);
-      if (user) {
-        user.totalPoints = (user.totalPoints || 0) + pickup.points;
-        await user.save();
-      }
+        // Check if this is the first pickup for the user
+        const userTransactionCount = await Transaction.countDocuments({ user: pickup.user._id, type: 'points' });
 
-      // Update progress for spin eligibility
-      try {
-        await User.findByIdAndUpdate(pickup.user._id, {
-          $inc: { totalWaste: quantity }
+        // Create transaction for delivery agent earnings
+        await Transaction.create({
+          user: req.user._id,
+          type: 'earning',
+          amount: earnings,
+          description: `Pickup ${pickup._id} completed`,
+          status: 'completed',
+          referenceId: `PK${pickup._id}`,
+          wasteDetails: {
+            type: mappedWasteType,
+            quantity: quantity
+          }
         });
-      } catch (progressError) {
-        console.error('Error updating progress:', progressError);
-      }
 
-      // Notify user via socket
-      if (req.io) {
-        req.io.to(`user-${pickup.user._id}`).emit('pickup-completed', {
-          pickup: pickup.toObject(),
-          message: 'Your pickup has been completed successfully!',
-          points: pickup.points
+        // Create transaction for user points
+        await Transaction.create({
+          user: pickup.user._id,
+          type: 'points',
+          amount: 0, // Points are stored in points field
+          points: points,
+          description: `Points earned for pickup ${pickup._id}`,
+          status: 'completed',
+          referenceId: `PK${pickup._id}`,
+          wasteDetails: {
+            type: mappedWasteType,
+            quantity: quantity
+          }
         });
+
+        // Update user totalPoints and totalPickups
+        await User.findByIdAndUpdate(pickup.user._id, { 
+          $inc: { 
+            totalPoints: points,
+            totalPickups: 1 
+          } 
+        });
+
+        // Save cycleProgress
+        if (user) {
+          await user.save();
+        }
+
+        // Check for level up
+        const updatedUser = await User.findById(pickup.user._id);
+        const newLevel = updatedUser.getLevel();
+        if (newLevel > updatedUser.currentLevel) {
+          await User.findByIdAndUpdate(pickup.user._id, { currentLevel: newLevel });
+
+          // Create level-up reward coupon
+          const couponCode = `LEVEL${newLevel}${Date.now().toString().slice(-6)}`;
+          await Reward.create({
+            user: pickup.user._id,
+            type: 'level_up',
+            title: `Level ${newLevel} Achieved!`,
+            description: `Congratulations on reaching Level ${newLevel}! Enjoy your level-up coupon.`,
+            couponCode,
+            partner: 'Clean Green App',
+            discount: `₹${newLevel * 10} OFF`,
+            expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+            icon: '🏆'
+          });
+        }
+
+        // If first pickup, create first pickup coupon and set flag
+        if (userTransactionCount === 0) {
+          const firstCouponCode = `FIRST${pickup.user._id.slice(-6)}${Date.now().toString().slice(-4)}`;
+          await Reward.create({
+            user: pickup.user._id,
+            type: 'first_pickup',
+            title: 'Welcome to Clean Green!',
+            description: 'Thank you for your first pickup! Enjoy this special coupon.',
+            couponCode: firstCouponCode,
+            partner: 'Clean Green App',
+            discount: '₹50 OFF',
+            expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+            icon: '🎉'
+          });
+          await User.findByIdAndUpdate(pickup.user._id, { firstPickupCouponUsed: true });
+        }
+
+        // Activate spin after successful submission (legacy, but keep for compatibility)
+        await User.findByIdAndUpdate(pickup.user._id, { spinAvailable: true });
+
+        // Notify user via socket
+        if (req.io) {
+          req.io.to(`user-${pickup.user._id}`).emit('pickup-completed', {
+            pickup: pickup.toObject(),
+            message: 'Your pickup has been completed successfully!',
+            points: points,
+            level: newLevel,
+            spinAvailable: true
+          });
+        }
       }
-    }
 
     await pickup.save();
     await pickup.populate('user address deliveryAgent');

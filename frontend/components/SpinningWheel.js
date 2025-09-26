@@ -51,28 +51,31 @@ export default function SpinningWheel({ onSpinComplete }) {
     <View style={styles.container}>
       <Animated.View
         style={[
-          styles.wheel,
+          styles.wheelContainer,
           { transform: [{ rotate: interpolatedSpin }] }
         ]}
       >
-        {SEGMENTS.map((segment, index) => (
-          <View
-            key={segment.id}
-            style={[
-              styles.segment,
-              {
-                backgroundColor: segment.color,
-                transform: [
-                  { rotate: `${index * SEGMENT_DEGREE}deg` }
-                ]
-              }
-            ]}
-          >
-            <Text style={[styles.segmentText, { transform: [{ rotate: '180deg' }] }]}>
-              {segment.type === 'money' ? `₹${segment.value}` : 'Seeds'}
-            </Text>
-          </View>
-        ))}
+        <View style={styles.wheel}>
+          {SEGMENTS.map((segment, index) => {
+            const rotation = index * SEGMENT_DEGREE;
+            return (
+              <View
+                key={segment.id}
+                style={[
+                  styles.segment,
+                  {
+                    backgroundColor: segment.color,
+                    transform: [{ rotate: `${rotation}deg` }]
+                  }
+                ]}
+              >
+                <Text style={styles.segmentText}>
+                  {segment.type === 'money' ? `₹${segment.value}` : `${segment.value} Seeds`}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
       </Animated.View>
 
       {/* Center pointer */}
@@ -107,32 +110,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 20,
   },
+  wheelContainer: {
+    position: 'relative',
+  },
   wheel: {
     width: 300,
     height: 300,
     borderRadius: 150,
-    backgroundColor: '#fff',
-    position: 'relative',
     borderWidth: 2,
     borderColor: '#000',
-  },
-  segment: {
-    position: 'absolute',
-    width: '50%',
-    height: '50%',
-    left: '50%',
-    top: 0,
-    transform: [{ translateX: -4 }],
-    transformOrigin: 'left bottom',
-    backgroundColor: '#000',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    padding: 10,
-  },
-  segmentText: {
-    color: '#fff',
-    fontWeight: 'bold',
-    marginTop: 10,
   },
   centerPointer: {
     position: 'absolute',
@@ -170,5 +156,22 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  segment: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderTopLeftRadius: 150,
+    borderTopRightRadius: 150,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 20,
+  },
+  segmentText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    transform: [{ rotate: '-60deg' }],
   },
 });

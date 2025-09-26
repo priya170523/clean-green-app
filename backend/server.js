@@ -19,6 +19,7 @@ const pickupRoutes = require('./routes/pickups');
 const addressRoutes = require('./routes/addresses');
 const rewardRoutes = require('./routes/rewards');
 const uploadRoutes = require('./routes/uploads');
+const paymentRoutes = require('./routes/payments');
 
 const app = express();
 const server = createServer(app);
@@ -158,6 +159,7 @@ app.use('/api/pickups', pickupRoutes);
 app.use('/api/addresses', addressRoutes);
 app.use('/api/rewards', rewardRoutes);
 app.use('/api/uploads', uploadRoutes);
+app.use('/api/payments', paymentRoutes);
 app.use('/api/progress', require('./routes/progress'));
 
 // Health check endpoint

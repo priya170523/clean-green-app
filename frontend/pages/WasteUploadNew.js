@@ -9,8 +9,10 @@ import {
   Alert,
   ActivityIndicator,
   TextInput,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadAPI, pickupAPI, addressAPI } from '../services/apiService';
 import { authService } from '../services/authService';
@@ -32,28 +34,6 @@ export default function WasteUploadNew({ navigation }) {
   });
   const [estimatedWeight, setEstimatedWeight] = useState('');
 
-  const validateWeight = (weight) => {
-    if (!weight) return '';
-
-    // Remove non-numeric characters except decimal point
-    const filtered = weight.replace(/[^0-9.]/g, '');
-
-    // Ensure only one decimal point
-    const parts = filtered.split('.');
-    if (parts.length > 2) return weight; // Keep old value if multiple decimal points
-
-    // Validate first part (before decimal)
-    if (parts[0].length > 6) return weight; // Max 999000 grams
-
-    // Limit to 2 decimal places
-    if (parts[1] && parts[1].length > 2) return weight;
-
-    // Ensure the value is not too large
-    const numValue = parseFloat(filtered);
-    if (numValue > 999000) return weight;
-
-    return filtered;
-  };
   const [priority, setPriority] = useState('now');
 
   // Convert grams to kg for API
@@ -62,7 +42,9 @@ export default function WasteUploadNew({ navigation }) {
     return parseFloat(grams) / 1000;
   };
   const [scheduledDate, setScheduledDate] = useState(new Date());
-  const [scheduledTime, setScheduledTime] = useState('');
+  const [scheduledTime, setScheduledTime] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -525,22 +507,51 @@ export default function WasteUploadNew({ navigation }) {
           {priority === 'scheduled' && (
             <View style={styles.scheduleInputs}>
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Time Slot</Text>
-                <View style={styles.timeSlots}>
-                  {['9:00-12:00', '12:00-15:00', '15:00-18:00'].map((slot) => (
-                    <TouchableOpacity
-                      key={slot}
-                      style={[styles.timeSlot, scheduledTime === slot && styles.selectedTimeSlot]}
-                      onPress={() => setScheduledTime(slot)}
-                    >
-                      <Text style={[styles.timeSlotText, scheduledTime === slot && styles.selectedTimeSlotText]}>
-                        {slot}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <Text style={styles.label}>Pickup Date</Text>
+                <TouchableOpacity style={styles.dateButton} onPress={() => setShowDatePicker(true)}>
+                  <Text style={styles.dateText}>
+                    {scheduledDate.toLocaleDateString()}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Pickup Time</Text>
+                <TouchableOpacity style={styles.dateButton} onPress={() => setShowTimePicker(true)}>
+                  <Text style={styles.dateText}>
+                    {scheduledTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </Text>
+                </TouchableOpacity>
               </View>
             </View>
+          )}
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={scheduledDate}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(event, selectedDate) => {
+                setShowDatePicker(false);
+                if (selectedDate) {
+                  setScheduledDate(selectedDate);
+                }
+              }}
+              minimumDate={new Date()}
+            />
+          )}
+
+          {showTimePicker && (
+            <DateTimePicker
+              value={scheduledTime}
+              mode="time"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(event, selectedTime) => {
+                setShowTimePicker(false);
+                if (selectedTime) {
+                  setScheduledTime(selectedTime);
+                }
+              }}
+            />
           )}
         </View>
 

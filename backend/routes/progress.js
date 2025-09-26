@@ -1,3 +1,4 @@
+
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../middleware/auth');
@@ -21,7 +22,7 @@ router.post('/update', protect, async function(req, res) {
             return res.status(404).json({ status: 'error', message: 'User not found' });
         }
 
-        // Update cycle progress
+        // Add to cycle progress
         user.cycleProgress = (user.cycleProgress || 0) + Number(weight);
 
         // Calculate points based on waste type and weight
@@ -44,22 +45,55 @@ router.post('/update', protect, async function(req, res) {
 
         // Update user's total points
         user.totalPoints = (user.totalPoints || 0) + points;
-        
+
+        // Check for level up
+        const oldLevel = user.currentLevel || 1;
+        const newLevel = user.getLevel(user.totalPoints);
+        user.currentLevel = newLevel;
+
         // Save both user and transaction
         await Promise.all([
             user.save(),
             transaction.save()
         ]);
 
-        res.json({ 
-            status: 'success', 
-            message: 'Progress updated', 
-            data: { 
-                totalWaste: user.totalWaste,
+        // Check for first pickup coupon
+        const transactionCount = await Transaction.countDocuments({ user: user._id });
+        if (transactionCount === 1) {
+            user.firstPickupCouponUsed = true;
+            await user.save();
+        }
+
+        // Create level up coupon if leveled up
+        if (newLevel > oldLevel) {
+            await Reward.create({
+                user: user._id,
+                type: 'level_up',
+                title: `Level ${newLevel} Achievement`,
+                description: `Congratulations! You've reached Level ${newLevel}!`,
+                couponCode: `LEVEL${newLevel}${Date.now().toString(36).slice(-4)}`,
+                partner: 'Clean Green App',
+                discount: `₹${newLevel * 10} OFF`,
+                expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+            });
+        }
+
+        // Calculate totalWaste from transactions
+        const transactions = await Transaction.find({ user: user._id });
+        let totalWaste = 0;
+        transactions.forEach(t => {
+            if (t.wasteDetails) totalWaste += t.wasteDetails.quantity || 0;
+        });
+
+        res.json({
+            status: 'success',
+            message: 'Progress updated',
+            data: {
+                totalWaste,
                 totalPoints: user.totalPoints,
                 earnedPoints: points,
-                canSpin: user.totalWaste >= 2 && !user.achievements?.includes('2kg_wheel_spun')
-            } 
+                canSpin: user.spinAvailable
+            }
         });
     } catch (error) {
         console.error('Error updating progress:', error);
@@ -87,26 +121,31 @@ router.get('/', protect, function(req, res) {
 
             // Check first-time pickup coupon eligibility
             let firstTimeCoupon = null;
-            if (transactions.length === 1) {
-                // Create first-time coupon if this is their first transaction
-                firstTimeCoupon = {
-                    code: `FIRST${req.user.id.slice(-6)}`,
-                    value: 50 // ₹50 off
-                };
-            }
 
             // Check if user has already spun the wheel for 2kg milestone
             return User.findById(req.user.id)
                 .then(user => {
-                    const wheelSpun = user.achievements?.includes('2kg_wheel_spun') || false;
+                    if (!user.firstPickupCouponUsed && transactions.length > 0) {
+                        // Create first-time coupon if not used and has transactions
+                        firstTimeCoupon = {
+                            code: `FIRST${req.user.id.slice(-6)}`,
+                            value: 50 // ₹50 off
+                        };
+                    }
 
                     res.json({
                         status: 'success',
                         data: {
                             totalWaste,
-                            totalPoints,
-                            wheelSpun,
-                            firstTimeCoupon,
+                            totalPoints: user.totalPoints || totalPoints,
+                            currentLevel: user.currentLevel || 1,
+                            cycleProgress: user.cycleProgress || 0,
+                            wheelSpunThisCycle: user.wheelSpunThisCycle || false,
+                            canSpin: (user.cycleProgress || 0) >= 2 && !(user.wheelSpunThisCycle || false),
+                            firstTimeCoupon: (!user.firstPickupCouponUsed && transactions.length === 1) ? {
+                                code: `FIRST${req.user.id.slice(-6)}`,
+                                value: 50 // ₹50 off
+                            } : null,
                             wasteTypes: transactions.reduce((acc, t) => {
                                 if (t.wasteDetails?.type) {
                                     acc[t.wasteDetails.type] = (acc[t.wasteDetails.type] || 0) + t.wasteDetails.quantity;
@@ -138,29 +177,26 @@ router.post('/wheel-reward', protect, function(req, res) {
             return Transaction.find({ user: req.user.id });
         })
         .then(transactions => {
-            const totalWaste = transactions.reduce((sum, t) => sum + (t.weight || 0), 0);
-            
-            if (totalWaste < 2) {
-                throw new Error('Must collect 2kg waste first');
-            }
-            
-            if (userData.achievements?.includes('2kg_wheel_spun')) {
-                throw new Error('Already claimed 2kg milestone reward');
+            if ((userData.cycleProgress || 0) < 2 || userData.wheelSpunThisCycle) {
+                throw new Error('Not eligible for spin');
             }
 
             // Create reward based on wheel result
             return Reward.create({
                 user: req.user.id,
-                title: 'Waste Warrior Reward',
-                description: `Congratulations on collecting 2kg waste! You won: ${result}`,
-                couponCode: `WW${Date.now().toString(36).slice(-6)}`,
-                value: result,
-                expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
+                type: 'special_achievement',
+                title: 'Spin Reward',
+                description: `You won: ${result}`,
+                couponCode: `SPIN${Date.now().toString(36).slice(-6)}`,
+                partner: 'Clean Green App',
+                discount: `₹${result} OFF`,
+                expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
             });
         })
         .then(reward => {
-            // Mark milestone as achieved
-            userData.achievements = [...(userData.achievements || []), '2kg_wheel_spun'];
+            // Reset cycle and mark spun
+            userData.cycleProgress = 0;
+            userData.wheelSpunThisCycle = true;
             return userData.save().then(() => reward);
         })
         .then(reward => {

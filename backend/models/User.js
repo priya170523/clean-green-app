@@ -61,15 +61,15 @@ const userSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  currentLevel: {
+    type: Number,
+    default: 1
+  },
   totalPickups: {
     type: Number,
     default: 0
   },
-  cycleProgress: {
-    type: Number,
-    default: 0
-  },
-  wheelSpunThisCycle: {
+  spinAvailable: {
     type: Boolean,
     default: false
   },
@@ -181,6 +181,20 @@ userSchema.methods.getPublicProfile = function() {
   delete userObject.password;
   delete userObject.__v;
   return userObject;
+};
+
+// Get level based on total points
+userSchema.methods.getLevel = function(totalPoints = this.totalPoints) {
+  if (totalPoints <= 200) return 1;
+  if (totalPoints <= 400) return 2;
+  if (totalPoints <= 800) return 3;
+  if (totalPoints <= 1600) return 4;
+  if (totalPoints <= 3200) return 5;
+  if (totalPoints <= 6400) return 6;
+  if (totalPoints <= 12800) return 7;
+  if (totalPoints <= 25600) return 8;
+  if (totalPoints <= 51200) return 9;
+  return 10; // Max level
 };
 
 module.exports = mongoose.model('User', userSchema);

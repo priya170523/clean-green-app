@@ -32,6 +32,7 @@ import base64 from 'base-64';
 import { getDirections, getFallbackDirections } from '../services/mapsService';
 import { dummyNotifications } from '../services/dummyData';
 import { pickupAPI } from '../services/apiService';
+import { api } from '../services/api';
 import * as ImagePicker from 'expo-image-picker';
 
 export default function DeliveryRoutePage({ navigation, route }) {
@@ -76,17 +77,17 @@ export default function DeliveryRoutePage({ navigation, route }) {
   // Initialize pickup location from pickup data
   useEffect(() => {
     if (pickupData) {
-      const location = pickupData.pickupLocation || pickupData.address;
-      if (location && location.latitude && location.longitude) {
+      const userAddress = pickupData.user?.address;
+      if (userAddress && userAddress.latitude && userAddress.longitude) {
         setPickupLocation({
-          latitude: location.latitude,
-          longitude: location.longitude,
+          latitude: userAddress.latitude,
+          longitude: userAddress.longitude,
         });
-      } else if (pickupData.address) {
-        // Fallback: use address coordinates if available
+      } else {
+        // Fallback: use default location if user address coordinates not available
         setPickupLocation({
-          latitude: pickupData.address.latitude || 12.9756,
-          longitude: pickupData.address.longitude || 77.5996,
+          latitude: 12.9756,
+          longitude: 77.5996,
         });
       }
     }
@@ -361,7 +362,7 @@ export default function DeliveryRoutePage({ navigation, route }) {
                 <Marker
                   coordinate={pickupLocation}
                   title="Pickup Location"
-                  description={pickupData.address?.formattedAddress || "Customer address"}
+                  description={pickupData.user?.address?.formattedAddress || "Customer address"}
                   pinColor="green"
                 />
               )}
@@ -420,7 +421,7 @@ export default function DeliveryRoutePage({ navigation, route }) {
             {pickupData.user?.phone || pickupData.customerPhone || 'Phone not available'}
           </Text>
           <Text style={styles.customerAddress}>
-            {pickupData.address?.formattedAddress || formatAddress(pickupData.address) || 'Address not available'}
+            {pickupData.user?.address?.formattedAddress || formatAddress(pickupData.user?.address) || 'Address not available'}
           </Text>
         </View>
 

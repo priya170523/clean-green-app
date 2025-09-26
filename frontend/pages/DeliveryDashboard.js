@@ -342,20 +342,7 @@ export default function DeliveryDashboard({ navigation }) {
           </View>
         </View>
 
-        {/* Quick Actions */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.actionButtons}>
-            <TouchableOpacity style={styles.actionButton} onPress={handleEarnings}>
-              <Text style={styles.actionButtonIcon}>💰</Text>
-              <Text style={styles.actionButtonText}>View Earnings</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton} onPress={handleProfile}>
-              <Text style={styles.actionButtonIcon}>👤</Text>
-              <Text style={styles.actionButtonText}>My Profile</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+
 
 
 
@@ -581,35 +568,7 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
   },
-  actionButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  actionButton: {
-    backgroundColor: '#c8e6c9',
-    width: '48%',
-    padding: 20,
-    borderRadius: 12,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#a5d6a7',
-    elevation: 2,
-    shadowColor: '#388e3c',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.12,
-    shadowRadius: 2,
-  },
-  actionButtonIcon: {
-    fontSize: 30,
-    marginBottom: 8,
-    color: '#388e3c',
-  },
-  actionButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#388e3c',
-    textAlign: 'center',
-  },
+
   notificationCard: {
     backgroundColor: '#fff',
     padding: 20,

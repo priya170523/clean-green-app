@@ -51,6 +51,18 @@ export default function AfterScheduling({ navigation, route }) {
         setStatusMessage('A delivery agent accepted your pickup. You can track on map.');
         setIsAssigned(true);
         setExecutiveDetails({ name: data.deliveryAgent?.name || 'Assigned Agent', phone: data.deliveryAgent?.phone || '', vehicle: 'Bike', eta: '15-20 min', rating: 4.7, totalPickups: 100 });
+      } else if (status === 'completed') {
+        setStatusMessage('Pickup completed successfully!');
+        try {
+          if (estimatedWeight && pickupId) {
+            await userAPI.updateProgress(pickupId, estimatedWeight);
+          }
+        } catch (e) {
+          // Ignore progress update errors
+        }
+        setTimeout(() => {
+          navigation.navigate('Dashboard');
+        }, 2000);
       }
     } catch (e) {}
   };
@@ -172,7 +184,11 @@ export default function AfterScheduling({ navigation, route }) {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Text style={styles.backText}>← Back</Text>
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Pickup Confirmation</Text>
+        <View style={styles.placeholder} />
       </View>
 
       <View style={styles.content}>
@@ -215,7 +231,7 @@ export default function AfterScheduling({ navigation, route }) {
             <Text style={styles.summaryText}>Waste Type: {wasteType}</Text>
             {bottles > 0 && <Text style={styles.summaryText}>Bottles: {bottles}</Text>}
             {otherItems && <Text style={styles.summaryText}>Other Items: {otherItems}</Text>}
-            <Text style={styles.summaryText}>Estimated Weight: {estimatedWeight} grams</Text>
+            <Text style={styles.summaryText}>Estimated Weight: {(estimatedWeight / 1000).toFixed(2)} kg</Text>
             <Text style={styles.summaryText}>
               Priority: {immediatePickup ? 'Immediate Pickup' : 'Scheduled Pickup'}
             </Text>
@@ -267,11 +283,18 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 4,
   },
+  backText: {
+    fontSize: 16,
+    color: '#4CAF50',
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: '800',
     color: '#1B5E20',
     textAlign: 'center',
+  },
+  placeholder: {
+    width: 50,
   },
   content: {
     flex: 1,

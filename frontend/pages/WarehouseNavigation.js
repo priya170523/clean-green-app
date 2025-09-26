@@ -243,7 +243,7 @@ export default function WarehouseNavigation({ navigation, route }) {
 
           {/* Route Line */}
           <Polyline
-            coordinates={[currentLocation, warehouseLocation]}
+            coordinates={routeWaypoints.length > 0 ? routeWaypoints : [currentLocation, warehouseLocation]}
             strokeColor="#4CAF50"
             strokeWidth={4}
             lineDashPattern={[5, 5]}
@@ -254,10 +254,10 @@ export default function WarehouseNavigation({ navigation, route }) {
       {/* Distance Info */}
       <View style={styles.distanceCard}>
         <Text style={styles.distanceText}>
-          Distance to warehouse: {distance.toFixed(2)} km
+          Distance to warehouse: {routeInfo?.distance || `${distance.toFixed(2)} km`}
         </Text>
         <Text style={styles.etaText}>
-          Estimated time: {Math.round(distance * 2)} minutes
+          Estimated time: {routeInfo?.duration || `${Math.round(distance * 2)} minutes`}
         </Text>
       </View>
 

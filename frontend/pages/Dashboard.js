@@ -11,7 +11,6 @@ import { notificationService } from '../services/notificationService';
 
 const { width } = Dimensions.get('window');
 
-// Helper to get weekly contribution data for the chart
 function getWeeklyContributionData(pickups) {
   // Get last 7 days labels
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -25,13 +24,13 @@ function getWeeklyContributionData(pickups) {
       date: d.toISOString().slice(0, 10),
     });
   }
-  // Count pickups per day
+  // Sum points per day (points based on weight)
   const counts = week.map(day => {
-    const count = (pickups || []).filter(p => {
+    const sumPoints = (pickups || []).filter(p => {
       const pickupDate = new Date(p.createdAt).toISOString().slice(0, 10);
       return pickupDate === day.date;
-    }).length;
-    return { label: day.label, value: count };
+    }).reduce((sum, p) => sum + (p.points || 0), 0);
+    return { label: day.label, value: sumPoints };
   });
   return counts;
 }
@@ -135,6 +134,12 @@ export default function Dashboard({ navigation }) {
       value: dashboardData?.stats?.totalSubmissions?.toString() || '0',
       icon: '📊',
       color: '#2196F3'
+    },
+    {
+      label: 'Current Level',
+      value: `Level ${dashboardData?.stats?.currentLevel || 1}`,
+      icon: '🏆',
+      color: '#9C27B0'
     }
   ];
 
@@ -151,10 +156,12 @@ export default function Dashboard({ navigation }) {
   // Remove awards section per request
   const awardsReceived = [];
 
-  // Detailed history from pickups
+  // Detailed history from pickups with enhanced item details
   const detailedHistory = (userPickups || []).slice(0, 5).map(p => ({
     date: new Date(p.createdAt).toLocaleString(),
-    action: `${(p.wasteDetails?.type || 'Mixed').toUpperCase()} waste submitted`,
+    action: `${(p.wasteType || p.wasteDetails?.type || 'Mixed').toUpperCase()} waste submitted`,
+    details: p.wasteDetails ? 
+      `${p.wasteDetails.foodBoxes || 0} food boxes, ${p.wasteDetails.bottles || 0} bottles, ${p.wasteDetails.other || 0} other items` : 'N/A',
     amount: `${p.wasteDetails?.quantity || 0} kg`,
     points: p.points ? `+${p.points}` : '0',
     status: p.status
@@ -217,18 +224,10 @@ export default function Dashboard({ navigation }) {
 
 
 
-        {/* Candlestick Chart */}
+        {/* Dynamic Points Trend Chart */}
         <LineChart
-          data={[
-            { label: 'Mon', value: 2 },
-            { label: 'Tue', value: 5 },
-            { label: 'Wed', value: 3 },
-            { label: 'Thu', value: 7 },
-            { label: 'Fri', value: 4 },
-            { label: 'Sat', value: 8 },
-            { label: 'Sun', value: 6 },
-          ]}
-          title="Waste Contribution Trend"
+          data={getWeeklyContributionData(userPickups)}
+          title="Points Trend (Points * Weight)"
         />
 
         {/* Detailed History */}
@@ -238,6 +237,8 @@ export default function Dashboard({ navigation }) {
             <View key={index} style={styles.historyItem}>
               <Text style={styles.historyDate}>{item.date}</Text>
               <Text style={styles.historyAction}>{item.action}</Text>
+              <Text style={styles.historyDetails}>{item.details}</Text>
+              <Text style={styles.historyAmount}>{item.amount}</Text>
               <Text style={[
                 styles.historyPoints,
                 { color: item.status === 'accepted' ? '#4CAF50' : '#f44336' }
@@ -346,6 +347,7 @@ const styles = StyleSheet.create({
   },
   statRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
     marginBottom: 20
   },
@@ -374,6 +376,17 @@ const styles = StyleSheet.create({
   historyAction: {
     fontSize: 16,
     color: '#333',
+    marginBottom: 2,
+  },
+  historyDetails: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 2,
+  },
+  historyAmount: {
+    fontSize: 14,
+    color: '#4CAF50',
+    fontWeight: '600',
     marginBottom: 2,
   },
   historyPoints: {

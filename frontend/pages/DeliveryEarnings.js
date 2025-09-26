@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import Card from '../components/Card';
-import { userAPI } from '../services/apiService';
+import { deliveryAPI } from '../services/apiService';
 import { authService } from '../services/authService';
 
 export default function DeliveryEarnings({ navigation }) {
@@ -22,7 +22,7 @@ export default function DeliveryEarnings({ navigation }) {
       setUser(currentUser);
 
       // Get earnings data
-      const response = await userAPI.getDashboard();
+      const response = await deliveryAPI.getEarnings();
 
       if (response.status === 'success') {
         setEarningsData(response.data);

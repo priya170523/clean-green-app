@@ -92,6 +92,7 @@ router.get('/dashboard', protect, async (req, res) => {
     // Get user's total points
     const user = await User.findById(userId);
     const totalPoints = user.totalPoints || 0;
+    const currentLevel = user.getLevel(totalPoints);
 
     // Get recent uploads (user's pickups)
     const recentPickups = await Pickup.find({ user: userId })
@@ -144,7 +145,10 @@ router.get('/dashboard', protect, async (req, res) => {
           totalPickups,
           completedPickups,
           pendingPickups,
-          totalPoints
+          totalPoints,
+          totalSubmissions: completedPickups,
+          totalWaste: totalWeight,
+          currentLevel
         },
         recentUploads,
         rewards,

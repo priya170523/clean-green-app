@@ -255,39 +255,6 @@ export default function Profile({ navigation }) {
             />
           </View>
 
-          {/* User Stats */}
-          {user && (
-            <View style={styles.statsContainer}>
-              <Text style={styles.sectionTitle}>Your Stats</Text>
-
-              <View style={styles.statRow}>
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>{user.totalPoints || 0}</Text>
-                  <Text style={styles.statLabel}>Points Earned</Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Text style={styles.statValue}>{user.totalPickups || 0}</Text>
-                  <Text style={styles.statLabel}>Total Pickups</Text>
-                </View>
-              </View>
-
-              {user.role === 'delivery' && (
-                <View style={styles.statRow}>
-                  <View style={styles.statItem}>
-                    <Text style={styles.statValue}>₹{user.earnings?.total || 0}</Text>
-                    <Text style={styles.statLabel}>Total Earnings</Text>
-                  </View>
-                  <View style={styles.statItem}>
-                    <Text style={styles.statValue}>
-                      {user.rating?.average ? user.rating.average.toFixed(1) : 'N/A'}
-                    </Text>
-                    <Text style={styles.statLabel}>Rating</Text>
-                  </View>
-                </View>
-              )}
-            </View>
-          )}
-
           {/* Action Buttons */}
           {editing && (
             <View style={styles.actionButtons}>
@@ -455,41 +422,6 @@ const styles = StyleSheet.create({
   },
   helpText: {
     fontSize: 12,
-    color: '#666',
-    marginTop: 5,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 15,
-  },
-  statsContainer: {
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 8,
-    marginBottom: 20,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-  },
-  statRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 15,
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#4CAF50',
-  },
-  statLabel: {
-    fontSize: 14,
     color: '#666',
     marginTop: 5,
   },

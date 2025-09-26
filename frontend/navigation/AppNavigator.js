@@ -1,5 +1,6 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { TouchableOpacity, Text } from 'react-native';
 import UserProfileSelector from '../pages/UserProfileSelector';
 import Login from '../pages/Login';
 import UserSignup from '../pages/UserSignup';
@@ -23,16 +24,57 @@ import DeliveryRoutePage from '../pages/DeliveryRoutePage';
 
 const Stack = createNativeStackNavigator();
 
+const BackButton = ({ navigation }) => (
+  <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
+    <Text style={{ color: '#fff', fontSize: 16 }}>Back</Text>
+  </TouchableOpacity>
+);
+
 export default function AppNavigator() {
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="UserProfileSelector" component={UserProfileSelector} />
-      <Stack.Screen name="UserAuth" component={Login} />
-      <Stack.Screen name="UserSignup" component={UserSignup} />
-      <Stack.Screen name="DeliveryAuth" component={DeliveryLogin} />
-      <Stack.Screen name="DeliverySignup" component={DeliverySignup} />
-      <Stack.Screen name="Main" component={TabNavigator} />
-      <Stack.Screen name="DeliveryMain" component={DeliveryTabNavigator} />
+    <Stack.Navigator 
+      screenOptions={{
+        headerShown: true,
+        headerLeft: ({ navigation }) => <BackButton navigation={navigation} />,
+        headerStyle: { backgroundColor: '#4CAF50' },
+        headerTintColor: '#fff',
+      }}
+    >
+      <Stack.Screen 
+        name="UserProfileSelector" 
+        component={UserProfileSelector} 
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="UserAuth" 
+        component={Login} 
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="UserSignup" 
+        component={UserSignup} 
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="DeliveryAuth" 
+        component={DeliveryLogin} 
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="DeliverySignup" 
+        component={DeliverySignup} 
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="Main" 
+        component={TabNavigator} 
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="DeliveryMain" 
+        component={DeliveryTabNavigator} 
+        options={{ headerShown: false }}
+      />
       <Stack.Screen name="WasteUploadNew" component={WasteUploadNew} />
       <Stack.Screen name="AfterScheduling" component={AfterScheduling} />
       <Stack.Screen name="MapView" component={MapView} />
@@ -45,7 +87,11 @@ export default function AppNavigator() {
       <Stack.Screen name="UserTrackingMap" component={UserTrackingMap} />
       <Stack.Screen name="EarningsPage" component={EarningsPage} />
       <Stack.Screen name="SchedulePickupPage" component={SchedulePickupPage} />
-      <Stack.Screen name="DeliveryRoutePage" component={DeliveryRoutePage} />
+      <Stack.Screen 
+        name="DeliveryRoutePage" 
+        component={DeliveryRoutePage} 
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }
