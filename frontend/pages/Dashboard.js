@@ -134,12 +134,6 @@ export default function Dashboard({ navigation }) {
       value: dashboardData?.stats?.totalSubmissions?.toString() || '0',
       icon: '📊',
       color: '#2196F3'
-    },
-    {
-      label: 'Current Level',
-      value: `Level ${dashboardData?.stats?.currentLevel || 1}`,
-      icon: '🏆',
-      color: '#9C27B0'
     }
   ];
 

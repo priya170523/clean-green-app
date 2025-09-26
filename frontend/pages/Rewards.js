@@ -37,8 +37,8 @@ export default function Rewards({ navigation }) {
         setTotalPoints(progressRes.data.totalPoints || 0);
         setCurrentLevel(progressRes.data.currentLevel || 1);
 
-        // Show wheel if spin is available after every submission
-        if (progressRes.data.spinAvailable) {
+        // Show wheel if can spin (after every 2kg cycle)
+        if (progressRes.data.canSpin) {
           setShowWheel(true);
         }
 

@@ -1,6 +1,6 @@
 const ENV = {
   development: {
-    API_BASE_URL: 'http://172.26.0.213:5000/api',
+    API_BASE_URL: 'http://10.183.135.241:5000/api',
   },
   production: {
     API_BASE_URL: 'https://your-production-api-url.com/api',

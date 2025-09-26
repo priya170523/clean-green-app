@@ -6,7 +6,7 @@ import axios from 'axios';
 // For physical device: use host machine's WiFi IP (run `ipconfig` to find it, e.g., 192.168.x.x)
 // For iOS simulator: use localhost
 // Note: Update this IP to match your host machine's IP accessible from your device/emulator
-const BASE_URL = 'http://172.26.0.213:5000/api'; // WiFi IP for physical device
+const BASE_URL = 'http://10.183.135.241:5000/api'; // WiFi IP for physical device
 
 // Create axios instance
 const api = axios.create({
@@ -444,7 +444,7 @@ export const deliveryAPI = {
 
   // Get earnings
   getEarnings: async () => {
-    const response = await api.get('/deliveries/earnings');
+    const response = await api.get('/delivery/earnings');
     return response.data;
   },
 

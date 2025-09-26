@@ -11,7 +11,8 @@ const { calculatePoints } = require('../utils/pointsCalculator');
 // Update user progress after delivery (for spin)
 router.post('/update', protect, async function(req, res) {
     try {
-        const { pickupId, weight } = req.body;
+        const body = req.body.post || req.body;
+        const { pickupId, weight } = body;
         if (!pickupId || !weight) {
             return res.status(400).json({ status: 'error', message: 'pickupId and weight required' });
         }
@@ -31,8 +32,8 @@ router.post('/update', protect, async function(req, res) {
         // Create transaction record
         const transaction = new Transaction({
             user: user._id,
-            type: 'earning',
-            amount: points, // Points as amount
+            type: 'points',
+            amount: 0,
             description: `Earned ${points} points for ${weight}kg waste`,
             pickup: pickupId,
             status: 'completed',
@@ -57,13 +58,6 @@ router.post('/update', protect, async function(req, res) {
             transaction.save()
         ]);
 
-        // Check for first pickup coupon
-        const transactionCount = await Transaction.countDocuments({ user: user._id });
-        if (transactionCount === 1) {
-            user.firstPickupCouponUsed = true;
-            await user.save();
-        }
-
         // Create level up coupon if leveled up
         if (newLevel > oldLevel) {
             await Reward.create({
@@ -77,6 +71,10 @@ router.post('/update', protect, async function(req, res) {
                 expiryDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days
             });
         }
+
+        // Enable spin for every submission
+        user.wheelSpunThisCycle = false;
+        await user.save();
 
         // Calculate totalWaste from transactions
         const transactions = await Transaction.find({ user: user._id });
@@ -92,7 +90,7 @@ router.post('/update', protect, async function(req, res) {
                 totalWaste,
                 totalPoints: user.totalPoints,
                 earnedPoints: points,
-                canSpin: user.spinAvailable
+                canSpin: true
             }
         });
     } catch (error) {
@@ -141,7 +139,7 @@ router.get('/', protect, function(req, res) {
                             currentLevel: user.currentLevel || 1,
                             cycleProgress: user.cycleProgress || 0,
                             wheelSpunThisCycle: user.wheelSpunThisCycle || false,
-                            canSpin: (user.cycleProgress || 0) >= 2 && !(user.wheelSpunThisCycle || false),
+                            canSpin: !(user.wheelSpunThisCycle || false),
                             firstTimeCoupon: (!user.firstPickupCouponUsed && transactions.length === 1) ? {
                                 code: `FIRST${req.user.id.slice(-6)}`,
                                 value: 50 // ₹50 off
@@ -177,7 +175,7 @@ router.post('/wheel-reward', protect, function(req, res) {
             return Transaction.find({ user: req.user.id });
         })
         .then(transactions => {
-            if ((userData.cycleProgress || 0) < 2 || userData.wheelSpunThisCycle) {
+            if (userData.wheelSpunThisCycle) {
                 throw new Error('Not eligible for spin');
             }
 

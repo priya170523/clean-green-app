@@ -155,6 +155,7 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/deliveries', deliveryRoutes);
+app.use('/api/delivery', require('./routes/delivery'));
 app.use('/api/pickups', pickupRoutes);
 app.use('/api/addresses', addressRoutes);
 app.use('/api/rewards', rewardRoutes);

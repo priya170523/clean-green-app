@@ -1,13 +1,15 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Easing, Image } from 'react-native';
 
 const SEGMENTS = [
-  { id: 1, type: 'money', value: 2, color: '#4CAF50' },
-  { id: 2, type: 'money', value: 3, color: '#2196F3' },
-  { id: 3, type: 'seeds', value: 1, color: '#FFC107' },
-  { id: 4, type: 'money', value: 2, color: '#4CAF50' },
-  { id: 5, type: 'money', value: 3, color: '#2196F3' },
-  { id: 6, type: 'seeds', value: 1, color: '#FFC107' }
+  { id: 1, type: 'money', value: 2, color: '#FF0000' }, // Red
+  { id: 2, type: 'seeds', value: 1, color: '#FFD700' }, // Yellow
+  { id: 3, type: 'money', value: 3, color: '#00FF00' }, // Green
+  { id: 4, type: 'money', value: 4, color: '#0000FF' }, // Blue
+  { id: 5, type: 'seeds', value: 2, color: '#00FFFF' }, // Cyan
+  { id: 6, type: 'money', value: 2, color: '#800080' }, // Purple
+  { id: 7, type: 'money', value: 3, color: '#FFA500' }, // Orange
+  { id: 8, type: 'seeds', value: 1, color: '#FF69B4' }  // Pink
 ];
 
 const SEGMENT_DEGREE = 360 / SEGMENTS.length;
@@ -55,27 +57,11 @@ export default function SpinningWheel({ onSpinComplete }) {
           { transform: [{ rotate: interpolatedSpin }] }
         ]}
       >
-        <View style={styles.wheel}>
-          {SEGMENTS.map((segment, index) => {
-            const rotation = index * SEGMENT_DEGREE;
-            return (
-              <View
-                key={segment.id}
-                style={[
-                  styles.segment,
-                  {
-                    backgroundColor: segment.color,
-                    transform: [{ rotate: `${rotation}deg` }]
-                  }
-                ]}
-              >
-                <Text style={styles.segmentText}>
-                  {segment.type === 'money' ? `₹${segment.value}` : `${segment.value} Seeds`}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
+        <Image 
+          source={require('../assets/spin-wheel.jpg')} 
+          style={styles.wheel} 
+          resizeMode="contain" 
+        />
       </Animated.View>
 
       {/* Center pointer */}
@@ -156,22 +142,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  segment: {
-    position: 'absolute',
-    width: 150,
-    height: 150,
-    borderTopLeftRadius: 150,
-    borderTopRightRadius: 150,
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingTop: 20,
-  },
-  segmentText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    transform: [{ rotate: '-60deg' }],
   },
 });
