@@ -17,6 +17,7 @@ export default function Login({ navigation }) {
     phone: ''
   });
   const [loading, setLoading] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
   const [switchAnim] = useState(new Animated.Value(0));
   const [showSplash, setShowSplash] = useState(false);
 

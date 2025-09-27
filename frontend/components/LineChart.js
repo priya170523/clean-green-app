@@ -3,9 +3,9 @@ import { View, Text, StyleSheet, Dimensions, Animated } from 'react-native';
 
 const { width: screenWidth } = Dimensions.get('window');
 const chartWidth = screenWidth - 40;
-const chartHeight = 180;
-const padding = 10;
-const graphHeight = chartHeight - 30; // Reduced space for labels
+const chartHeight = 220;
+const padding = 15;
+const graphHeight = chartHeight - 40; // More space for labels and structure
 
 export default function LineChart({ data, title = "Waste Contribution Trend" }) {
   const [animation] = useState(new Animated.Value(0));
@@ -40,8 +40,8 @@ export default function LineChart({ data, title = "Waste Contribution Trend" }) 
   const yAxisLabels = Array.from({length: ySteps + 1}, (_, i) => Math.round((ySteps - i) * stepValue));
 
   // Bar width with spacing - dynamic for better fit
-  const barSpacing = 10;
-  const barWidth = Math.min(25, (chartWidth - 70) / data.length);
+  const barSpacing = 15;
+  const barWidth = Math.min(30, (chartWidth - 80) / data.length);
 
   return (
     <View style={styles.container}>
@@ -137,16 +137,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     paddingHorizontal: padding,
-    paddingBottom: 30, // More space for labels
+    paddingBottom: 40, // Adjusted for better label structure
     position: 'relative',
   },
   yAxisLabels: {
     position: 'absolute',
-    left: 10,
+    left: 5,
     top: 0,
     height: graphHeight,
     justifyContent: 'space-between',
-    width: 40,
+    width: 45,
     zIndex: 1,
   },
   gridContainer: {
@@ -168,8 +168,8 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     justifyContent: 'space-around',
     height: graphHeight,
-    marginLeft: 60,
-    paddingBottom: 5,
+    marginLeft: 55,
+    paddingBottom: 8,
     zIndex: 2,
   },
   barItem: {
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   },
   barLabel: {
     position: 'absolute',
-    bottom: -25,
+    bottom: -28,
     left: 0,
     right: 0,
     fontSize: 11,
@@ -210,8 +210,8 @@ const styles = StyleSheet.create({
   },
   xAxis: {
     position: 'absolute',
-    bottom: 5,
-    left: 60,
+    bottom: 8,
+    left: 55,
     right: padding,
     height: 1,
     backgroundColor: '#ddd',

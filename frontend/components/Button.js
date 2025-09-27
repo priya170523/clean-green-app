@@ -1,10 +1,11 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { COLORS } from '../../theme/colors';
 
 export default function Button({ title, onPress, style, variant = 'primary' }) {
   const gradientColors =
-    variant === 'primary' ? ['#4CAF50', '#2E7D32'] : ['#FF5722', '#FF5722']; // Primary Green or Warning Orange
+    variant === 'primary' ? [COLORS.primary, COLORS.leaf] : [COLORS.accent, COLORS.accent]; // Primary Green or Warning Yellow
 
   return (
     <TouchableOpacity onPress={onPress} style={[styles.wrapper, style]}>
@@ -17,22 +18,22 @@ export default function Button({ title, onPress, style, variant = 'primary' }) {
 
 const styles = StyleSheet.create({
   wrapper: { 
-    borderRadius: 14, 
+    borderRadius: 12, 
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 4,
+    elevation: 3,
   },
   gradient: {
     paddingVertical: 12,
     paddingHorizontal: 20,
-    borderRadius: 14,
+    borderRadius: 12,
     alignItems: 'center',
   },
   text: {
-    color: '#fff',
+    color: COLORS.white,
     fontWeight: '700',
     fontSize: 16,
   }

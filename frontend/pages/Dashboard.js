@@ -8,6 +8,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { userAPI, addressAPI, pickupAPI } from '../services/apiService';
 import { authService } from '../services/authService';
 import { notificationService } from '../services/notificationService';
+import { COLORS } from '../../theme/colors';
+import Loading from '../components/Loading';
 
 const { width } = Dimensions.get('window');
 
@@ -42,6 +44,7 @@ export default function Dashboard({ navigation }) {
   const [addresses, setAddresses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [userPickups, setUserPickups] = useState([]);
+  const [loadingStats, setLoadingStats] = useState(true);
   const [totalWasteData, setTotalWasteData] = useState([]);
 
   useEffect(() => {
@@ -82,15 +85,15 @@ export default function Dashboard({ navigation }) {
         setDashboardData(response.data);
       }
 
-      // Get total waste stats
-      try {
-        const totalWasteResponse = await userAPI.getTotalWasteStats();
-        if (totalWasteResponse.status === 'success') {
-          setTotalWasteData(totalWasteResponse.data);
-        }
-      } catch (e) {
-        console.error('Error fetching total waste stats:', e);
-      }
+  // Get total waste stats
+  try {
+    const totalWasteResponse = await userAPI.getTotalWasteStats();
+    if (totalWasteResponse.status === 'success') {
+      setTotalWasteData(totalWasteResponse.data);
+    }
+  } catch (e) {
+    console.error('Error fetching total waste stats:', e);
+  }
 
       // Get user addresses
       const addressesResponse = await addressAPI.getAddresses();
@@ -132,19 +135,19 @@ export default function Dashboard({ navigation }) {
       label: 'Total Waste Submitted',
       value: `${dashboardData?.stats?.totalWaste || 0} kg`,
       icon: '📤',
-      color: '#4CAF50'
+      color: COLORS.primary
     },
     {
       label: 'Total Points',
       value: dashboardData?.stats?.totalPoints?.toString() || '0',
       icon: '⭐',
-      color: '#FF9800'
+      color: COLORS.accent
     },
     {
       label: 'Number of Submissions',
       value: dashboardData?.stats?.totalSubmissions?.toString() || '0',
       icon: '📊',
-      color: '#2196F3'
+      color: COLORS.secondary
     }
   ];
 
@@ -176,9 +179,6 @@ export default function Dashboard({ navigation }) {
     navigation.navigate('WasteUploadNew');
   };
 
-  const handleSchedule = () => {
-    navigation.navigate('ScheduledPage');
-  };
 
   const handleProfile = () => {
     navigation.navigate('Profile');
@@ -193,7 +193,7 @@ export default function Dashboard({ navigation }) {
   };
 
   const handleMoreHistory = () => {
-    navigation.navigate('ScheduledPage');
+    navigation.navigate('Profile');
   };
 
   return (
@@ -207,9 +207,6 @@ export default function Dashboard({ navigation }) {
             <View style={styles.actionButtons}>
               <TouchableOpacity style={styles.headerButton} onPress={handleUpload}>
                 <Text style={styles.headerButtonText}>Upload</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.headerButton} onPress={handleSchedule}>
-                <Text style={styles.headerButtonText}>Schedule</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -246,7 +243,7 @@ export default function Dashboard({ navigation }) {
               <Text style={styles.historyAmount}>{item.amount}</Text>
               <Text style={[
                 styles.historyPoints,
-                { color: item.status === 'accepted' ? '#4CAF50' : '#f44336' }
+                { color: item.status === 'accepted' ? COLORS.primary : COLORS.error }
               ]}>
                 {item.points}
               </Text>
@@ -273,14 +270,14 @@ export default function Dashboard({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
   },
   header: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
     paddingTop: 60,
     paddingBottom: 20,
     paddingHorizontal: 20,
-    shadowColor: '#000',
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -295,27 +292,27 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: COLORS.grid,
     justifyContent: 'center',
     alignItems: 'center',
   },
   profileIconText: {
     fontSize: 24,
-    color: '#333',
+    color: COLORS.text,
   },
   addressContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#f0f0f0',
+    backgroundColor: COLORS.grid,
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
     marginTop: 12,
     marginHorizontal: 16,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
-    shadowColor: '#000',
+    borderColor: COLORS.border,
+    shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
@@ -323,26 +320,26 @@ const styles = StyleSheet.create({
   },
   addressText: {
     fontSize: 14,
-    color: '#666',
+    color: COLORS.textSecondary,
     flex: 1,
   },
   editAddressText: {
     fontSize: 16,
-    color: '#4CAF50',
+    color: COLORS.primary,
     fontWeight: '600',
   },
   actionButtons: {
     flexDirection: 'row',
   },
   headerButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 16,
     marginLeft: 8,
   },
   headerButtonText: {
-    color: '#fff',
+    color: COLORS.white,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -358,39 +355,39 @@ const styles = StyleSheet.create({
   },
   sectionCard: {
     marginBottom: 20,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.white,
   },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#333',
+    color: COLORS.text,
     marginBottom: 16
   },
 
   historyItem: {
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: COLORS.grid,
   },
   historyDate: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: COLORS.text,
     marginBottom: 4,
   },
   historyAction: {
     fontSize: 16,
-    color: '#333',
+    color: COLORS.text,
     marginBottom: 2,
   },
   historyDetails: {
     fontSize: 14,
-    color: '#666',
+    color: COLORS.textSecondary,
     marginBottom: 2,
   },
   historyAmount: {
     fontSize: 14,
-    color: '#4CAF50',
+    color: COLORS.primary,
     fontWeight: '600',
     marginBottom: 2,
   },
@@ -404,7 +401,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   moreButtonText: {
-    color: '#4CAF50',
+    color: COLORS.primary,
     fontSize: 16,
     fontWeight: '600',
     textDecorationLine: 'underline',
@@ -413,6 +410,6 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   supportButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: COLORS.primary,
   },
 });

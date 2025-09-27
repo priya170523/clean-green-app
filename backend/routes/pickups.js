@@ -424,15 +424,17 @@ router.put('/:id/status', protect, restrictTo('delivery'), async (req, res) => {
     }
     pickup.timeline.push({ status, timestamp: new Date(), location, notes });
 
-      // On completion, compute earnings and record transaction
-      if (status === 'completed') {
-        // Map wasteType to transaction wasteDetails type
-        const wasteTypeMapping = {
-          'food': 'organic',
-          'bottles': 'bottles',
-          'other': 'other',
-          'mixed': 'mixed'
-        };
+    await pickup.save();
+
+    // On completion, compute earnings and record transaction
+    if (status === 'completed') {
+      // Map wasteType to transaction wasteDetails type
+      const wasteTypeMapping = {
+        'food': 'organic',
+        'bottles': 'bottles',
+        'other': 'other',
+        'mixed': 'mixed'
+      };
 
         // Calculate quantity based on waste details
         let quantity = pickup.estimatedWeight || 1; // Default to 1 if no weight

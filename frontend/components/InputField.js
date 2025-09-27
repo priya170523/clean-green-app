@@ -1,44 +1,108 @@
-import React from 'react';
-import { View, TextInput, StyleSheet, Text } from 'react-native';
+import React, { useState } from 'react';
+import { View, TextInput, StyleSheet, Text, Platform } from 'react-native';
+import { COLORS } from '../../theme/colors';
 
-export default function InputField({ label, ...props }) {
+export default function InputField({ 
+  label, 
+  error, 
+  containerStyle, 
+  style,
+  onBlur,
+  onFocus,
+  ...props 
+}) {
+  const [isFocused, setIsFocused] = useState(false);
+
+  const handleFocus = (e) => {
+    setIsFocused(true);
+    onFocus && onFocus(e);
+  };
+
+  const handleBlur = (e) => {
+    setIsFocused(false);
+    onBlur && onBlur(e);
+  };
+
   return (
-    <View style={{ marginVertical: 6 }}>
+    <View style={[styles.wrapper, containerStyle]}>
       {label && <Text style={styles.label}>{label}</Text>}
-      <View style={styles.container}>
+      <View style={[
+        styles.container,
+        isFocused && styles.containerFocused,
+        error && styles.containerError,
+        !props.editable && styles.containerDisabled,
+      ]}>
         <TextInput 
-          placeholderTextColor="#888" 
-          style={styles.input} 
+          placeholderTextColor={COLORS.textLight}
+          style={[styles.input, style]}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
           {...props} 
         />
       </View>
+      {error && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  wrapper: {
+    marginVertical: 8,
+  },
   label: { 
     fontSize: 14, 
-    color: '#1B5E20', // Deep Green
+    color: COLORS.text,
     marginBottom: 6,
     fontWeight: '600'
   },
   container: {
     borderRadius: 12,
-    backgroundColor: '#fff', // White background for input fields
+    backgroundColor: COLORS.white,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: Platform.OS === 'ios' ? 12 : 8,
     borderWidth: 1,
-    borderColor: '#A5D6A7', // Accent Green border
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    borderColor: COLORS.border,
+    ...Platform.select({
+      ios: {
+        shadowColor: COLORS.shadow,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  containerFocused: {
+    borderColor: COLORS.primary,
+    borderWidth: 1.5,
+    ...Platform.select({
+      ios: {
+        shadowOpacity: 0.15,
+      },
+      android: {
+        elevation: 3,
+      },
+    }),
+  },
+  containerError: {
+    borderColor: COLORS.error,
+  },
+  containerDisabled: {
+    backgroundColor: COLORS.backgroundLight,
+    borderColor: COLORS.border,
   },
   input: { 
     height: 40, 
     fontSize: 16,
-    color: '#1B5E20', // Deep Green text
+    color: COLORS.text,
+    padding: 0,
+    margin: 0,
+  },
+  errorText: {
+    color: COLORS.error,
+    fontSize: 12,
+    marginTop: 4,
   }
 });

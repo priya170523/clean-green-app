@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Card from './Card';
+import { COLORS } from '../../theme/colors';
 
-export default function StatCard({ label, value, icon, color = '#4CAF50' }) {
+export default function StatCard({ label, value, icon, color = COLORS.primary }) {
   return (
     <Card style={styles.container}>
       {icon && <Text style={styles.icon}>{icon}</Text>}
@@ -19,21 +20,23 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
     minHeight: 100,
     justifyContent: 'center',
-    backgroundColor: '#A5D6A7', // Accent Green for stat cards
+    backgroundColor: COLORS.white,
   },
   icon: {
     fontSize: 24,
     marginBottom: 8,
   },
   value: { 
-    fontSize: 18, 
+    fontSize: 24, 
     fontWeight: '800', 
-    marginBottom: 4
+    marginBottom: 8,
+    color: COLORS.text
   },
   label: { 
-    fontSize: 11, 
-    color: '#666', // Gray Text
+    fontSize: 13, 
+    color: COLORS.textSecondary,
     textAlign: 'center',
-    lineHeight: 14
+    lineHeight: 16,
+    paddingHorizontal: 4
   }
 });

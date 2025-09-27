@@ -1,7 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated } from 'react-native';
+import { View, StyleSheet, Animated } from 'react-native';
+import Loading from './Loading';
+import { COLORS } from '../../theme/colors';
 
-export default function LoadingScreen() {
+export default function LoadingScreen({ text = 'Loading...' }) {
   const rotateValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -32,7 +34,7 @@ export default function LoadingScreen() {
       >
         ♻️
       </Animated.Text>
-      <Text style={styles.loadingText}>Loading...</Text>
+      <Loading text={text} />
     </View>
   );
 }
@@ -42,7 +44,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F1F8E9', // Very light green
+    backgroundColor: COLORS.background,
   },
   recycleIcon: {
     fontSize: 80,

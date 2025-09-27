@@ -12,7 +12,6 @@ import WasteUploadNew from '../pages/WasteUploadNew';
 import AfterScheduling from '../pages/AfterScheduling';
 import MapView from '../pages/MapView';
 import PickupScheduler from '../pages/PickupScheduler';
-import ScheduledPage from '../pages/ScheduledPage';
 import DeliveryPickupAccepted from '../pages/DeliveryPickupAccepted';
 import AddressManagement from '../pages/AddressManagement';
 import Support from '../pages/Support';
@@ -75,13 +74,12 @@ export default function AppNavigator() {
         component={DeliveryTabNavigator} 
         options={{ headerShown: false }}
       />
-      <Stack.Screen name="WasteUploadNew" component={WasteUploadNew} />
-      <Stack.Screen name="AfterScheduling" component={AfterScheduling} />
+      <Stack.Screen name="WasteUploadNew" component={WasteUploadNew} options={{ headerShown: false }} />
+      <Stack.Screen name="AfterScheduling" component={AfterScheduling} options={{ headerShown: false }} />
       <Stack.Screen name="MapView" component={MapView} />
       <Stack.Screen name="PickupScheduler" component={PickupScheduler} />
-      <Stack.Screen name="ScheduledPage" component={ScheduledPage} />
       <Stack.Screen name="DeliveryPickupAccepted" component={DeliveryPickupAccepted} />
-      <Stack.Screen name="AddressManagement" component={AddressManagement} />
+      <Stack.Screen name="AddressManagement" component={AddressManagement} options={{ headerShown: false }} />
       <Stack.Screen name="Support" component={Support} />
       <Stack.Screen name="WarehouseNavigation" component={WarehouseNavigation} />
       <Stack.Screen name="UserTrackingMap" component={UserTrackingMap} />

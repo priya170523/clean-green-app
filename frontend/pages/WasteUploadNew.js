@@ -16,6 +16,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadAPI, pickupAPI, addressAPI } from '../services/apiService';
 import { authService } from '../services/authService';
+import Loading from '../components/Loading';
 
 export default function WasteUploadNew({ navigation }) {
   const [loading, setLoading] = useState(false);
@@ -280,12 +281,7 @@ export default function WasteUploadNew({ navigation }) {
   ];
 
   if (loading && !currentUser) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4CAF50" />
-        <Text>Loading...</Text>
-      </View>
-    );
+    return <Loading fullScreen text="Loading..." />;
   }
 
   return (

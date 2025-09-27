@@ -1,24 +1,84 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Platform } from 'react-native';
+import { COLORS } from '../../theme/colors';
 
-export default function Card({ children, style }) {
+export default function Card({ 
+  children, 
+  style, 
+  onPress, 
+  variant = 'default',
+  disabled = false 
+}) {
+  const Container = onPress ? TouchableOpacity : View;
+  const containerStyle = [
+    styles.card,
+    variant === 'outlined' && styles.cardOutlined,
+    variant === 'elevated' && styles.cardElevated,
+    disabled && styles.cardDisabled,
+    style
+  ];
+
   return (
-    <View style={[styles.card, style]}>
+    <Container 
+      style={containerStyle}
+      onPress={!disabled ? onPress : null}
+      disabled={disabled}
+      activeOpacity={0.8}
+    >
       {children}
-    </View>
+    </Container>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 16,
-    backgroundColor: '#C8E6C9', // Medium Green card background
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     marginBottom: 16,
-  }
+    ...Platform.select({
+      ios: {
+        shadowColor: COLORS.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+    }),
+  },
+  cardOutlined: {
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    ...Platform.select({
+      ios: {
+        shadowOpacity: 0,
+      },
+      android: {
+        elevation: 0,
+      },
+    }),
+  },
+  cardElevated: {
+    backgroundColor: COLORS.white,
+    borderWidth: 0,
+    ...Platform.select({
+      ios: {
+        shadowColor: COLORS.shadow,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  cardDisabled: {
+    opacity: 0.6,
+  },
 });

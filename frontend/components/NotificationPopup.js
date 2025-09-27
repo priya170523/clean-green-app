@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, Alert } from 'react-native';
+import Loading from './Loading';
 import { pickupAPI } from '../services/apiService';
 import notificationService from '../services/notificationService';
 
@@ -176,7 +177,7 @@ export default function NotificationPopup({ visible, notification, onClose, onAc
           {/* Loading Indicator */}
           {(isAccepting || isRejecting) && (
             <View style={styles.loadingOverlay}>
-              <ActivityIndicator size="large" color="#4CAF50" />
+              <Loading text={isAccepting ? 'Accepting...' : 'Rejecting...'} overlay />
             </View>
           )}
 
