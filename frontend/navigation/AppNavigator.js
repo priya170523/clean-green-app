@@ -1,6 +1,9 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { TouchableOpacity, Text } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet, Platform } from 'react-native';
+import { COLORS } from '../../theme/colors';
+
+// Import screens
 import UserProfileSelector from '../pages/UserProfileSelector';
 import Login from '../pages/Login';
 import UserSignup from '../pages/UserSignup';
@@ -23,21 +26,68 @@ import DeliveryRoutePage from '../pages/DeliveryRoutePage';
 
 const Stack = createNativeStackNavigator();
 
-const BackButton = ({ navigation }) => (
-  <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 10 }}>
-    <Text style={{ color: '#fff', fontSize: 16 }}>Back</Text>
-  </TouchableOpacity>
-);
+// Component styles
+const styles = StyleSheet.create({
+  header: {
+    backgroundColor: COLORS.primary,
+    height: Platform.OS === 'ios' ? 96 : 64,
+    elevation: 0,
+    borderBottomWidth: 0,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.white,
+  },
+  backButton: {
+    padding: 8,
+    marginLeft: 8,
+    marginTop: Platform.OS === 'ios' ? 8 : 0,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  backButtonText: {
+    color: COLORS.white,
+    fontSize: 24,
+    lineHeight: 24,
+  },
+});
+
+// Back button component with navigation check
+const BackButton = ({ navigation }) => {
+  if (!navigation?.canGoBack()) return null;
+  
+  return (
+    <TouchableOpacity 
+      onPress={() => navigation.goBack()} 
+      style={styles.backButton}
+      accessibilityLabel="Go back"
+      accessibilityRole="button"
+      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+    >
+      <Text style={styles.backButtonText}>←</Text>
+    </TouchableOpacity>
+  );
+};
+
+// Default screen options
+const defaultScreenOptions = {
+  headerStyle: styles.header,
+  headerTitleStyle: styles.headerTitle,
+  headerTitleAlign: 'center',
+  headerTintColor: COLORS.white,
+  headerBackVisible: false,
+  headerShadowVisible: false,
+};
 
 export default function AppNavigator() {
   return (
-    <Stack.Navigator 
-      screenOptions={{
-        headerShown: true,
-        headerLeft: ({ navigation }) => <BackButton navigation={navigation} />,
-        headerStyle: { backgroundColor: '#4CAF50' },
-        headerTintColor: '#fff',
-      }}
+    <Stack.Navigator
+      screenOptions={({ navigation }) => ({
+        ...defaultScreenOptions,
+        headerLeft: () => <BackButton navigation={navigation} />,
+        animation: 'slide_from_right',
+      })}
     >
       <Stack.Screen 
         name="UserProfileSelector" 
@@ -74,21 +124,65 @@ export default function AppNavigator() {
         component={DeliveryTabNavigator} 
         options={{ headerShown: false }}
       />
-      <Stack.Screen name="WasteUploadNew" component={WasteUploadNew} options={{ headerShown: false }} />
-      <Stack.Screen name="AfterScheduling" component={AfterScheduling} options={{ headerShown: false }} />
-      <Stack.Screen name="MapView" component={MapView} />
-      <Stack.Screen name="PickupScheduler" component={PickupScheduler} />
-      <Stack.Screen name="DeliveryPickupAccepted" component={DeliveryPickupAccepted} />
-      <Stack.Screen name="AddressManagement" component={AddressManagement} options={{ headerShown: false }} />
-      <Stack.Screen name="Support" component={Support} />
-      <Stack.Screen name="WarehouseNavigation" component={WarehouseNavigation} />
-      <Stack.Screen name="UserTrackingMap" component={UserTrackingMap} />
-      <Stack.Screen name="EarningsPage" component={EarningsPage} />
-      <Stack.Screen name="SchedulePickupPage" component={SchedulePickupPage} />
+      <Stack.Screen 
+        name="WasteUploadNew" 
+        component={WasteUploadNew} 
+        options={{ title: 'Upload Waste' }}
+      />
+      <Stack.Screen 
+        name="AfterScheduling" 
+        component={AfterScheduling} 
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen 
+        name="MapView" 
+        component={MapView} 
+        options={{ title: 'Location' }}
+      />
+      <Stack.Screen 
+        name="PickupScheduler" 
+        component={PickupScheduler} 
+        options={{ title: 'Schedule Pickup' }}
+      />
+      <Stack.Screen 
+        name="DeliveryPickupAccepted" 
+        component={DeliveryPickupAccepted} 
+        options={{ title: 'Pickup Details' }}
+      />
+      <Stack.Screen 
+        name="AddressManagement" 
+        component={AddressManagement} 
+        options={{ title: 'Manage Addresses' }}
+      />
+      <Stack.Screen 
+        name="Support" 
+        component={Support} 
+        options={{ title: 'Support' }}
+      />
+      <Stack.Screen 
+        name="WarehouseNavigation" 
+        component={WarehouseNavigation} 
+        options={{ title: 'Warehouse Location' }}
+      />
+      <Stack.Screen 
+        name="UserTrackingMap" 
+        component={UserTrackingMap} 
+        options={{ title: 'Track Pickup' }}
+      />
+      <Stack.Screen 
+        name="EarningsPage" 
+        component={EarningsPage} 
+        options={{ title: 'Earnings' }}
+      />
+      <Stack.Screen 
+        name="SchedulePickupPage" 
+        component={SchedulePickupPage} 
+        options={{ title: 'Schedule Pickup' }}
+      />
       <Stack.Screen 
         name="DeliveryRoutePage" 
         component={DeliveryRoutePage} 
-        options={{ headerShown: false }}
+        options={{ title: 'Delivery Route' }}
       />
     </Stack.Navigator>
   );

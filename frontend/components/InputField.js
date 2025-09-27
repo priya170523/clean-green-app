@@ -9,6 +9,12 @@ export default function InputField({
   style,
   onBlur,
   onFocus,
+  keyboardType = 'default',
+  returnKeyType = 'done',
+  blurOnSubmit = true,
+  maxLength,
+  accessibilityLabel,
+  accessibilityHint,
   ...props 
 }) {
   const [isFocused, setIsFocused] = useState(false);
@@ -37,6 +43,13 @@ export default function InputField({
           style={[styles.input, style]}
           onFocus={handleFocus}
           onBlur={handleBlur}
+          keyboardType={keyboardType}
+          returnKeyType={returnKeyType}
+          blurOnSubmit={blurOnSubmit}
+          maxLength={maxLength}
+          accessibilityLabel={accessibilityLabel || label}
+          accessibilityHint={accessibilityHint}
+          selectionColor={COLORS.primary}
           {...props} 
         />
       </View>
@@ -48,19 +61,21 @@ export default function InputField({
 const styles = StyleSheet.create({
   wrapper: {
     marginVertical: 8,
+    width: '100%',
   },
   label: { 
     fontSize: 14, 
     color: COLORS.text,
-    marginBottom: 6,
-    fontWeight: '600'
+    marginBottom: 8,
+    fontWeight: '600',
+    marginLeft: 4,
   },
   container: {
     borderRadius: 12,
     backgroundColor: COLORS.white,
     paddingHorizontal: 16,
-    paddingVertical: Platform.OS === 'ios' ? 12 : 8,
-    borderWidth: 1,
+    paddingVertical: Platform.OS === 'ios' ? 14 : 10,
+    borderWidth: 1.5,
     borderColor: COLORS.border,
     ...Platform.select({
       ios: {

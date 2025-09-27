@@ -1,438 +1,354 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import MapView, { Marker, Polyline } from 'react-native-maps';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
+import * as Location from 'expo-location';
 import { getDirections, getFallbackDirections } from '../services/mapsService';
+import { COLORS } from '../../theme/colors';
+
+const LOCATION_SETTINGS = {
+  accuracy: Location.Accuracy.Balanced,
+  timeInterval: 5000,
+  distanceInterval: 20
+};
+
+const MIN_UPDATE_INTERVAL = 10000; // 10 seconds between route updates
 
 export default function UserTrackingMap({ navigation, route }) {
   const { pickupData } = route.params || {};
-  const [deliveryLocation, setDeliveryLocation] = useState(null);
-  const [userLocation, setUserLocation] = useState(null);
-  const [region, setRegion] = useState(null);
+  
+  // State management
   const [currentLocation, setCurrentLocation] = useState(null);
-  const [locationUpdateError, setLocationUpdateError] = useState(null);
-
-  const [routeWaypoints, setRouteWaypoints] = useState([]);
+  const [routeCoordinates, setRouteCoordinates] = useState([]);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(true);
+  const [locationError, setLocationError] = useState(null);
   const [routeInfo, setRouteInfo] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [region, setRegion] = useState(null);
 
-  // Get current location
-  useEffect(() => {
-    let watchId;
+  // Refs for cleanup and optimization
+  const locationSubscription = useRef(null);
+  const isSubscribed = useRef(true);
+  const lastUpdate = useRef(0);
 
-    const getCurrentLocation = () => {
-      if (!navigator?.geolocation) {
-        setLocationUpdateError('Geolocation is not supported');
+  const updateDeliveryRoute = useCallback(async (currentLoc) => {
+    try {
+      if (!currentLoc?.latitude || !currentLoc?.longitude) {
+        console.log('Invalid current location');
         return;
       }
 
-      watchId = navigator.geolocation.watchPosition(
-        position => {
-          const { latitude, longitude } = position.coords;
-          setCurrentLocation({ latitude, longitude });
-          setLocationUpdateError(null);
-        },
-        error => {
-          console.error('Location error:', error);
-          setLocationUpdateError('Unable to get current location');
-        },
-        {
-          enableHighAccuracy: true,
-          distanceFilter: 10, // Update if moved by 10 meters
-          timeout: 20000,
-          maximumAge: 1000
-        }
-      );
-    };
-
-    getCurrentLocation();
-
-    return () => {
-      if (watchId) {
-        navigator.geolocation.clearWatch(watchId);
+      if (!pickupData?.address?.location?.coordinates) {
+        console.log('No pickup location available');
+        return;
       }
-    };
-  }, []);
 
-  // Fetch delivery location and user location from backend or props
-  useEffect(() => {
-    if (!pickupData) return;
+      const destinationLoc = {
+        latitude: pickupData.address.location.coordinates[1],
+        longitude: pickupData.address.location.coordinates[0]
+      };
 
-    // Set user location from pickupData address or use current location
-    const userLoc = pickupData.pickupLocation || pickupData.address || currentLocation || {
-      latitude: 12.9756,
-      longitude: 77.5996,
-    };
-    setUserLocation({
-      latitude: userLoc.latitude,
-      longitude: userLoc.longitude,
-    });
+      console.log('Updating route from', currentLoc, 'to', destinationLoc);
+      const routeData = await getDirections(currentLoc, destinationLoc);
+      
+      if (!isSubscribed.current) return;
 
-    // Fetch delivery location from backend or props
-    // For now, initialize to warehouse or pickupData.deliveryLocation if available
-    // Use warehouse coordinates
-    const deliveryLoc = pickupData.deliveryLocation || {
-      latitude: 16.541373,
-      longitude: 81.514552,
-    };
-    setDeliveryLocation({
-      latitude: deliveryLoc.latitude,
-      longitude: deliveryLoc.longitude,
-    });
-
-    // Set initial region centered between delivery and user
-    setRegion({
-      latitude: (deliveryLoc.latitude + userLoc.latitude) / 2,
-      longitude: (deliveryLoc.longitude + userLoc.longitude) / 2,
-      latitudeDelta: 0.01,
-      longitudeDelta: 0.01,
-    });
-  }, [pickupData]);
-
-  // Calculate route when deliveryLocation and userLocation are set
-  useEffect(() => {
-    if (!deliveryLocation || !userLocation) return;
-
-    const calculateRoute = async () => {
-      setLoading(true);
-      try {
-        const result = await getDirections(deliveryLocation, userLocation);
-        if (result.success) {
-          setRouteWaypoints(result.waypoints);
-          setRouteInfo({
-            distance: result.distance,
-            duration: result.duration,
-          });
-        } else {
-          console.log('Using fallback route calculation');
-          const fallbackResult = getFallbackDirections(deliveryLocation, userLocation);
-          setRouteWaypoints(fallbackResult.waypoints);
-          setRouteInfo({
-            distance: fallbackResult.distance,
-            duration: fallbackResult.duration,
-          });
-        }
-      } catch (error) {
-        console.error('Route calculation error:', error);
-        const fallbackResult = getFallbackDirections(deliveryLocation, userLocation);
-        setRouteWaypoints(fallbackResult.waypoints);
+      if (routeData?.success && routeData?.waypoints) {
+        console.log('Route updated with', routeData.waypoints.length, 'points');
+        setRouteCoordinates(routeData.waypoints);
+        setRouteInfo({
+          distance: routeData.distance,
+          duration: routeData.duration
+        });
+      } else {
+        console.log('Using fallback route calculation');
+        const fallbackResult = getFallbackDirections(currentLoc, destinationLoc);
+        setRouteCoordinates(fallbackResult.waypoints);
         setRouteInfo({
           distance: fallbackResult.distance,
-          duration: fallbackResult.duration,
+          duration: fallbackResult.duration
         });
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (error) {
+      if (!isSubscribed.current) return;
+      console.error('Error updating route:', error);
+      Alert.alert('Route Error', 'Unable to calculate the route. Please try again.');
+    }
+  }, [pickupData]);
 
-    calculateRoute();
-  }, [deliveryLocation, userLocation]);
+  const startLocationTracking = useCallback(async () => {
+    try {
+      setIsLoadingLocation(true);
+      setLocationError(null);
 
-  // Update route when current location changes
-  useEffect(() => {
-    if (!currentLocation || !pickupData) return;
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        setLocationError('Location permission denied');
+        Alert.alert(
+          'Permission Required',
+          'Please enable location services to see the pickup route.'
+        );
+        return;
+      }
 
-    const updateRoute = async () => {
-      try {
-        // Update the delivery location to current location
-        setDeliveryLocation(currentLocation);
-        
-        // Recalculate route with new position
-        const result = await getDirections(currentLocation, userLocation, {
-          mode: 'driving',
-          avoid: ['ferries', 'indoor'],
-          units: 'metric',
-          optimize: true
+      // Get initial location
+      const initialLocation = await Location.getCurrentPositionAsync({
+        ...LOCATION_SETTINGS,
+        maximumAge: 10000
+      });
+
+      if (!isSubscribed.current) return;
+
+      const { latitude, longitude } = initialLocation.coords;
+      const locationData = { latitude, longitude };
+      
+      console.log('Initial location:', locationData);
+      setCurrentLocation(locationData);
+      updateDeliveryRoute(locationData);
+      lastUpdate.current = Date.now();
+
+      // Set initial region
+      const destinationCoords = pickupData?.address?.location?.coordinates;
+      if (destinationCoords) {
+        setRegion({
+          latitude: (latitude + destinationCoords[1]) / 2,
+          longitude: (longitude + destinationCoords[0]) / 2,
+          latitudeDelta: Math.abs(latitude - destinationCoords[1]) * 2.5,
+          longitudeDelta: Math.abs(longitude - destinationCoords[0]) * 2.5
         });
-        if (result.success) {
-          setRouteWaypoints(result.waypoints);
-          setRouteInfo({
-            distance: result.distance,
-            duration: result.duration,
-          });
+      }
+
+      // Start watching location changes
+      locationSubscription.current = await Location.watchPositionAsync(
+        LOCATION_SETTINGS,
+        (newLocation) => {
+          if (!isSubscribed.current) return;
+
+          const { latitude, longitude } = newLocation.coords;
+          const locationData = { latitude, longitude };
+          
+          // Always update current location
+          setCurrentLocation(locationData);
+
+          // Debounce route updates
+          const now = Date.now();
+          if (now - lastUpdate.current >= MIN_UPDATE_INTERVAL) {
+            console.log('Location update triggering route update:', locationData);
+            lastUpdate.current = now;
+            updateDeliveryRoute(locationData);
+          }
         }
-      } catch (error) {
-        console.error('Route update error:', error);
+      );
+    } catch (error) {
+      if (!isSubscribed.current) return;
+      console.error('Location error:', error);
+      setLocationError('Unable to get location');
+      Alert.alert(
+        'Location Error',
+        'Unable to get your current location. Please check your location settings.'
+      );
+    } finally {
+      if (isSubscribed.current) {
+        setIsLoadingLocation(false);
+      }
+    }
+  }, [updateDeliveryRoute, pickupData]);
+
+  // Initialize location tracking
+  useEffect(() => {
+    startLocationTracking();
+
+    return () => {
+      isSubscribed.current = false;
+      if (locationSubscription.current) {
+        locationSubscription.current.remove();
       }
     };
+  }, [startLocationTracking]);
 
-    updateRoute();
-  }, [currentLocation, pickupData, userLocation]);
+  if (isLoadingLocation) {
+    return (
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Getting your location...</Text>
+      </View>
+    );
+  }
 
-  // Calculate distance between delivery and user
-  const calculateDistance = (lat1, lon1, lat2, lon2) => {
-    const R = 6371;
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    return R * c;
+  if (locationError) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.errorText}>{locationError}</Text>
+        <TouchableOpacity 
+          style={styles.retryButton}
+          onPress={startLocationTracking}
+        >
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!currentLocation || !pickupData?.address?.location) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.loadingText}>Waiting for location data...</Text>
+      </View>
+    );
+  }
+
+  const destinationCoords = {
+    latitude: pickupData.address.location.coordinates[1],
+    longitude: pickupData.address.location.coordinates[0]
   };
-
-  const distance = deliveryLocation && userLocation ? calculateDistance(
-    deliveryLocation.latitude, 
-    deliveryLocation.longitude,
-    userLocation.latitude, 
-    userLocation.longitude
-  ) : 0;
 
   return (
     <View style={styles.container}>
-      {pickupData?.status === 'completed' && (
-        <View style={styles.thankYouContainer}>
-          <Text style={styles.thankYouText}>
-            Thank you for using our service! Your waste has been collected successfully.
-          </Text>
-        </View>
-      )}
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
           <Text style={styles.backButtonText}>← Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Delivery Tracking</Text>
-        <TouchableOpacity style={styles.mapsButton} onPress={() => Alert.alert('Open Maps', 'Opening in device maps app...')}>
-          <Text style={styles.mapsButtonText}>Maps</Text>
-        </TouchableOpacity>
       </View>
 
       {/* Status Card */}
-      <View style={styles.statusCard}>
-        <Text style={styles.statusTitle}>🚚 Delivery Executive Coming</Text>
-        <Text style={styles.statusText}>
-          Our delivery executive is on the way to your location
-        </Text>
-        <Text style={styles.distanceText}>
-          Distance: {distance.toFixed(2)} km • ETA: {Math.round(distance * 3)} min
-        </Text>
-      </View>
+      {routeInfo && (
+        <View style={styles.statusCard}>
+          <Text style={styles.statusTitle}>🚚 En Route</Text>
+          <Text style={styles.statusText}>
+            Distance: {routeInfo.distance} • ETA: {routeInfo.duration}
+          </Text>
+        </View>
+      )}
 
       {/* Map */}
       <View style={styles.mapContainer}>
-        {loading || !deliveryLocation || !userLocation ? (
-          <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Calculating route...</Text>
-          </View>
-        ) : (
-          <MapView
-            style={styles.map}
-            region={region}
-            onRegionChangeComplete={setRegion}
-            showsUserLocation={true}
-            showsMyLocationButton={true}
-            showsCompass={true}
-            showsScale={true}
-          >
-            {/* User Location Marker */}
-            <Marker
-              coordinate={userLocation}
-              title="Your Location"
-              description="Pickup location"
-              pinColor="green"
-            />
-            
-            {/* Delivery Person Location Marker */}
-            <Marker
-              coordinate={deliveryLocation}
-              title="Delivery Executive"
-              description="Coming to you"
-            >
-              <View style={styles.bikeIcon}>
-                <Text style={styles.bikeEmoji}>🏍️</Text>
-              </View>
-            </Marker>
-            
-            {/* Route Line */}
-            {routeWaypoints.length > 0 && (
-              <Polyline
-                coordinates={routeWaypoints}
-                strokeColor="#4CAF50"
-                strokeWidth={4}
-                lineDashPattern={[5, 5]}
-              />
-            )}
-          </MapView>
-        )}
-      </View>
+        <MapView
+          provider={PROVIDER_GOOGLE}
+          style={styles.map}
+          region={region || {
+            latitude: currentLocation.latitude,
+            longitude: currentLocation.longitude,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05
+          }}
+          onRegionChangeComplete={setRegion}
+          showsUserLocation
+          showsMyLocationButton
+          showsCompass
+          followsUserLocation
+        >
+          <Marker
+            coordinate={currentLocation}
+            title="Your Location"
+            description="Current location"
+            pinColor={COLORS.primary}
+          />
 
-      {/* Executive Info */}
-      <View style={styles.executiveCard}>
-        <Text style={styles.executiveTitle}>Delivery Executive</Text>
-        <Text style={styles.executiveName}>Rajesh Kumar</Text>
-        <Text style={styles.executivePhone}>+91 98765 43210</Text>
-        <Text style={styles.executiveVehicle}>E-rickshaw (Green)</Text>
+          <Marker
+            coordinate={destinationCoords}
+            title="Pickup Location"
+            description={pickupData?.address?.formatted_address || 'Pickup point'}
+            pinColor={COLORS.secondary}
+          />
+
+          {routeCoordinates.length > 0 && (
+            <Polyline
+              coordinates={routeCoordinates}
+              strokeWidth={3}
+              strokeColor={COLORS.primary}
+              lineDashPattern={[1]}
+            />
+          )}
+        </MapView>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  thankYouContainer: {
-    position: 'absolute',
-    top: 20,
-    left: 20,
-    right: 20,
-    backgroundColor: 'rgba(76, 175, 80, 0.9)',
-    padding: 15,
-    borderRadius: 10,
-    zIndex: 1000,
-    elevation: 5,
-  },
-  thankYouText: {
-    color: '#ffffff',
-    fontSize: 16,
-    textAlign: 'center',
-    fontWeight: 'bold',
-  },
   container: {
     flex: 1,
-    backgroundColor: '#F1F8E9',
+    backgroundColor: '#fff'
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 60,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
+    padding: 16,
+    paddingTop: 48,
     backgroundColor: '#fff',
+    elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 2
   },
   backButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#E8F5E9',
-    borderRadius: 8,
+    padding: 8
   },
   backButtonText: {
-    color: '#2E7D32',
     fontSize: 16,
-    fontWeight: '600',
+    color: COLORS.primary
   },
   headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#1B5E20',
-  },
-  mapsButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#4CAF50',
-    borderRadius: 8,
-  },
-  mapsButtonText: {
-    color: '#fff',
-    fontSize: 16,
+    flex: 1,
+    fontSize: 18,
     fontWeight: '600',
+    textAlign: 'center',
+    marginRight: 40
   },
   statusCard: {
-    backgroundColor: '#4CAF50',
-    margin: 20,
-    padding: 20,
-    borderRadius: 12,
-    alignItems: 'center',
+    margin: 16,
+    padding: 16,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowRadius: 2
   },
   statusTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: '#fff',
-    marginBottom: 8,
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8
   },
   statusText: {
-    fontSize: 16,
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 8,
-  },
-  distanceText: {
     fontSize: 14,
-    color: '#E8F5E9',
-    fontWeight: '600',
+    color: '#666'
   },
   mapContainer: {
     flex: 1,
-    margin: 20,
-    marginTop: 0,
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  loadingContainer: {
-    height: 250,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#666',
+    overflow: 'hidden'
   },
   map: {
-    flex: 1,
+    flex: 1
   },
-  executiveCard: {
-    backgroundColor: '#fff',
-    margin: 20,
-    marginTop: 0,
-    padding: 16,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  executiveTitle: {
+  loadingText: {
+    marginTop: 12,
     fontSize: 16,
-    fontWeight: '700',
-    color: '#1B5E20',
-    marginBottom: 8,
+    color: '#666'
   },
-  executiveName: {
+  errorText: {
+    color: COLORS.error,
     fontSize: 16,
-    fontWeight: '600',
-    color: '#2E7D32',
-    marginBottom: 4,
+    textAlign: 'center',
+    marginBottom: 16
   },
-  executivePhone: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
+  retryButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8
   },
-  executiveVehicle: {
-    fontSize: 14,
-    color: '#666',
-  },
-  bikeIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#4CAF50',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  bikeEmoji: {
-    fontSize: 20,
-  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600'
+  }
 });

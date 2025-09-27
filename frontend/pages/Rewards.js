@@ -98,6 +98,21 @@ export default function Rewards({ navigation }) {
   };
 
   const handleSpinComplete = async (result) => {
+    try {
+      setIsSpinning(true);
+      const spinResult = await rewardAPI.submitSpinResult(result);
+      
+      if (spinResult.status === 'success') {
+        setCanSpin(false); // Disable spinning after successful spin
+        setShowWheel(false);
+        Alert.alert('Congratulations!', `You won ${result.label}!`);
+        await loadRewards(); // Reload rewards to show new ones
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to record spin result');
+    } finally {
+      setIsSpinning(false);
+    }
     if (isSpinning || !canSpin) return; // Prevent multiple spins
 
     try {

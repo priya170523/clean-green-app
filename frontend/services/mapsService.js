@@ -28,17 +28,25 @@ const rateLimitedRequest = async (requestFn, retryCount = 0) => {
   }
 };
 
-// OpenStreetMap-based routing using OpenRouteService (free tier available)
-const OPENROUTE_API_KEY = 'YOUR_OPENROUTE_API_KEY'; // Optional - can work without it
-const OPENROUTE_BASE_URL = 'https://api.openrouteservice.org/v2/directions';
-
 export const getDirections = async (origin, destination, options = {}) => {
+  console.log('Getting directions:', { origin, destination });
+
   try {
-    // First try OpenRouteService (free tier available)
-    if (OPENROUTE_API_KEY && OPENROUTE_API_KEY !== 'YOUR_OPENROUTE_API_KEY') {
-      const routingProfile = options.mode === 'walking' ? 'foot' : 'driving-car';
+
+    // Validate coordinates
+    if (!origin?.latitude || !origin?.longitude || !destination?.latitude || !destination?.longitude) {
+      console.error('Invalid coordinates provided:', { origin, destination });
+      return {
+        success: false,
+        error: 'Invalid coordinates provided',
+        details: { origin, destination }
+      };
+    }
+      // Use OSRM fallback service
+      const routingProfile = 'driving';
+      const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}?overview=full&geometries=polyline`;
       
-      const response = await axios.get(OPENROUTE_BASE_URL, {
+      const response = await axios.get(osrmUrl, {
         params: {
           api_key: OPENROUTE_API_KEY,
           start: `${origin.longitude},${origin.latitude}`,
@@ -76,7 +84,6 @@ export const getDirections = async (origin, destination, options = {}) => {
           endLocation: destination,
         };
       }
-    }
     
     // Fallback to OSRM (Open Source Routing Machine) - completely free
     return await getOSRMDirections(origin, destination);
@@ -96,12 +103,15 @@ const getOSRMDirections = async (origin, destination) => {
     const endCoords = `${destination.longitude},${destination.latitude}`;
     const url = `https://router.project-osrm.org/route/v1/driving/${startCoords};${endCoords}`;
     
-    const response = await axios.get(url, {
-      params: {
-        overview: 'full',
-        geometries: 'geojson',
-        steps: false,
-      },
+    const response = await rateLimitedRequest(async () => {
+      return await axios.get(url, {
+        params: {
+          overview: 'full',
+          geometries: 'geojson',
+          steps: false,
+        },
+        timeout: 10000 // 10 second timeout
+      });
     });
 
     if (response.data.routes && response.data.routes.length > 0) {
@@ -189,14 +199,27 @@ export const getFallbackDirections = (origin, destination) => {
 
 // Additional OpenStreetMap-based geocoding service
 export const reverseGeocode = async (latitude, longitude) => {
+  if (!latitude || !longitude) {
+    return {
+      success: false,
+      error: 'Invalid coordinates provided'
+    };
+  }
+
   try {
-    const response = await axios.get('https://nominatim.openstreetmap.org/reverse', {
-      params: {
-        lat: latitude,
-        lon: longitude,
-        format: 'json',
-        addressdetails: 1,
-      },
+    const response = await rateLimitedRequest(async () => {
+      return await axios.get('https://nominatim.openstreetmap.org/reverse', {
+        params: {
+          lat: latitude,
+          lon: longitude,
+          format: 'json',
+          addressdetails: 1,
+        },
+        headers: {
+          'User-Agent': 'CleanGreenApp/1.0'
+        },
+        timeout: 5000
+      });
     });
 
     if (response.data && response.data.display_name) {
@@ -222,17 +245,30 @@ export const reverseGeocode = async (latitude, longitude) => {
 
 // Search for places using OpenStreetMap
 export const searchPlaces = async (query, latitude, longitude) => {
+  if (!query) {
+    return {
+      success: false,
+      error: 'Search query is required'
+    };
+  }
+
   try {
-    const response = await axios.get('https://nominatim.openstreetmap.org/search', {
-      params: {
-        q: query,
-        format: 'json',
-        addressdetails: 1,
-        limit: 5,
-        lat: latitude,
-        lon: longitude,
-        radius: 10000, // 10km radius
-      },
+    const response = await rateLimitedRequest(async () => {
+      return await axios.get('https://nominatim.openstreetmap.org/search', {
+        params: {
+          q: query,
+          format: 'json',
+          addressdetails: 1,
+          limit: 5,
+          lat: latitude,
+          lon: longitude,
+          radius: 10000, // 10km radius
+        },
+        headers: {
+          'User-Agent': 'CleanGreenApp/1.0'
+        },
+        timeout: 5000
+      });
     });
 
     if (response.data && response.data.length > 0) {

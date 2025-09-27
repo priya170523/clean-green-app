@@ -28,10 +28,9 @@ import {
 
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
-import base64 from 'base-64';
-import { getDirections, getFallbackDirections } from '../services/mapsService';
+import { getDirections } from '../services/mapsService';
 import { dummyNotifications } from '../services/dummyData';
-import { pickupAPI } from '../services/apiService';
+import pickupAPI from '../services/pickupService';
 import { api } from '../services/api';
 import * as ImagePicker from 'expo-image-picker';
 

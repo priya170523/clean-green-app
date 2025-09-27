@@ -6,7 +6,7 @@ import axios from 'axios';
 // For physical device: use host machine's WiFi IP (run `ipconfig` to find it, e.g., 192.168.x.x)
 // For iOS simulator: use localhost
 // Note: Update this IP to match your host machine's IP accessible from your device/emulator
-const BASE_URL = 'http://192.168.214.241:5000/api'; // WiFi IP for physical device
+const BASE_URL = 'http://172.26.0.213:5000/api'; // WiFi IP for physical device
 
 // Create axios instance
 const api = axios.create({
@@ -553,17 +553,71 @@ export const uploadAPI = {
 
   // Upload delivery documents
   uploadDocument: async (documentUri, documentType) => {
-    const formData = new FormData();
-    formData.append('document', {
-      uri: documentUri,
-      type: 'image/jpeg', // Adjust if documents can be PDF/other
-      name: 'document.jpg',
-    });
-    formData.append('documentType', documentType);
+    try {
+      const formData = new FormData();
+      
+      // Get file extension and mime type
+      const fileExtension = documentUri.split('.').pop()?.toLowerCase() || 'jpg';
+      const mimeType = fileExtension === 'png' ? 'image/png' : 'image/jpeg';
+      
+      // Create a unique filename
+      const timestamp = new Date().getTime();
+      const uniqueFilename = `${documentType}_${timestamp}`;
+      
+      // Append the file to form data
+      formData.append('file', {
+        uri: documentUri,
+        type: mimeType,
+        name: `${uniqueFilename}.${fileExtension}`,
+      });
 
-    // Let Axios auto-set Content-Type with boundary
-    const response = await api.post('/uploads/delivery-documents', formData);
-    return response.data;
+      // Add Cloudinary unsigned upload preset and other parameters
+      formData.append('upload_preset', 'clean_green_unsigned'); // Your Cloudinary unsigned upload preset
+      formData.append('tags', `delivery,${documentType}`);
+      formData.append('folder', 'delivery_documents');
+      formData.append('public_id', uniqueFilename);
+
+      // Upload directly to Cloudinary using unsigned upload
+      const response = await fetch('https://api.cloudinary.com/v1_1/dlpkj7dtc/image/upload', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Upload failed with status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      // Now update the backend about the uploaded document
+      const token = await AsyncStorage.getItem('authToken');
+      if (!token) {
+        throw new Error('No auth token found');
+      }
+
+      // Update backend with the Cloudinary URL
+      const backendResponse = await api.post('/uploads/document-info', {
+        documentType,
+        cloudinaryUrl: data.secure_url,
+        publicId: data.public_id
+      });
+
+      return {
+        success: true,
+        data: {
+          url: data.secure_url,
+          type: documentType,
+          publicId: data.public_id
+        }
+      };
+    } catch (error) {
+      console.error('Document upload error:', error);
+      return {
+        success: false,
+        message: error.message || 'Failed to upload document'
+      };
+    }
   },
 
   // Delete uploaded image

@@ -107,17 +107,68 @@ const userSchema = new mongoose.Schema({
   vehicleImages: [{
     type: String
   }],
-  documents: [{
-    type: {
-      type: String,
-      enum: ['license', 'insurance', 'registration', 'other']
+  documents: {
+    aadhar: {
+      url: String,
+      publicId: String,
+      verified: {
+        type: Boolean,
+        default: false
+      },
+      uploadedAt: {
+        type: Date,
+        default: Date.now
+      }
     },
-    imageUrl: String,
-    uploadedAt: {
-      type: Date,
-      default: Date.now
+    license: {
+      url: String,
+      publicId: String,
+      verified: {
+        type: Boolean,
+        default: false
+      },
+      uploadedAt: {
+        type: Date,
+        default: Date.now
+      }
+    },
+    insurance: {
+      url: String,
+      publicId: String,
+      verified: {
+        type: Boolean,
+        default: false
+      },
+      uploadedAt: {
+        type: Date,
+        default: Date.now
+      }
+    },
+    registration: {
+      url: String,
+      publicId: String,
+      verified: {
+        type: Boolean,
+        default: false
+      },
+      uploadedAt: {
+        type: Date,
+        default: Date.now
+      }
+    },
+    other: {
+      url: String,
+      publicId: String,
+      verified: {
+        type: Boolean,
+        default: false
+      },
+      uploadedAt: {
+        type: Date,
+        default: Date.now
+      }
     }
-  }],
+  },
   rating: {
     average: {
       type: Number,

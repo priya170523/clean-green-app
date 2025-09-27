@@ -40,7 +40,7 @@ export default function WasteUploadNew({ navigation }) {
   // Convert grams to kg for API
   const convertToKg = (grams) => {
     if (!grams) return 0;
-    return parseFloat(grams) / 1000;
+    return Number((parseFloat(grams) / 1000).toFixed(2));
   };
   const [scheduledDate, setScheduledDate] = useState(new Date());
   const [scheduledTime, setScheduledTime] = useState(new Date());

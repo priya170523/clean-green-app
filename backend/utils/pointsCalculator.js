@@ -26,26 +26,28 @@ const calculatePoints = (wasteType, quantity, mode = 'user') => {
     return { points: 0, earnings };
   }
 
-  // User points: 10-50
+  // User points: Base points + (points per kg * quantity), max 50 points
   const basePoints = 10;
-  let pointsPerKg = 20;
+  let pointsPerKg = 10;
 
-  // Map app waste types to multipliers
+  // Map app waste types to point multipliers
   switch (wasteType) {
     case 'bottles':
-      pointsPerKg = 25;
-      break;
-    case 'mixed':
-      pointsPerKg = 20;
-      break;
-    case 'other':
       pointsPerKg = 15;
       break;
+    case 'mixed':
+      pointsPerKg = 10;
+      break;
+    case 'other':
+      pointsPerKg = 12;
+      break;
     default:
-      pointsPerKg = 20;
+      pointsPerKg = 10;
   }
 
-  const points = Math.min(50, Math.floor(basePoints + (pointsPerKg * quantity)));
+  // Calculate points based on quantity, but ensure it doesn't exceed 50
+  const calculatedPoints = basePoints + (pointsPerKg * quantity);
+  const points = Math.min(50, Math.floor(calculatedPoints));
   return { points, earnings: 0 };
 };
 

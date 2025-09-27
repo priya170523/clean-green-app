@@ -1,12 +1,15 @@
-# Dashboard Chart Update - Total Wastes Submitted by All Users
+# TODO: Fix Document Upload AbortError
 
-## Completed Tasks
-- [x] Updated Dashboard.js to fetch total waste stats for all users using userAPI.getTotalWasteStats()
-- [x] Changed LineChart data from user-specific points trend to app-wide total wastes
-- [x] Updated chart title to "Waste Analysis Trend"
-- [x] Applied consistent theme colors throughout Dashboard.js using COLORS from theme/colors.js
-- [x] Fixed import paths for COLORS in Button.js, Card.js, and StatCard.js components
-- [x] Verified backend endpoint /users/total-waste-stats exists and returns correct data format
+## Tasks
+- [x] Increase fetch timeout in uploadService.js from 60s to 120s
+- [x] Add retry logic (3 attempts) for AbortError/NetworkError in uploadService.js
+- [x] Improve error logging in uploadService.js for AbortError
+- [x] Increase Multer file size limit in uploads.js from 5MB to 10MB
+- [x] Add timeout handling for Cloudinary upload in uploads.js
+- [x] Enhance logging in uploads.js for upload failures
+- [x] Test upload flow after changes (skipped by user)
+- [x] Verify Cloudinary env vars and connection
 
-## Summary
-The dashboard now displays a line chart showing the total number of wastes submitted by all users over the last 7 days, instead of the user's individual points trend. The chart title is "Waste Analysis Trend" and all styling uses the eco-green theme colors. Import path issues in shared components have been resolved.
+## Progress
+- Started: [Date/Time]
+- Completed: [Date/Time]

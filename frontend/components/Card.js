@@ -23,7 +23,9 @@ export default function Card({
       style={containerStyle}
       onPress={!disabled ? onPress : null}
       disabled={disabled}
-      activeOpacity={0.8}
+      activeOpacity={0.7}
+      accessibilityRole={onPress ? 'button' : 'none'}
+      accessibilityState={{ disabled }}
     >
       {children}
     </Container>
@@ -32,21 +34,22 @@ export default function Card({
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: Platform.OS === 'ios' ? 20 : 16,
     backgroundColor: COLORS.white,
-    borderWidth: 1,
+    borderWidth: Platform.OS === 'ios' ? 0 : 1,
     borderColor: COLORS.border,
-    marginBottom: 16,
+    marginHorizontal: 16,
+    marginVertical: 8,
     ...Platform.select({
       ios: {
         shadowColor: COLORS.shadow,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.12,
+        shadowRadius: 6,
       },
       android: {
-        elevation: 2,
+        elevation: 3,
       },
     }),
   },
@@ -69,12 +72,12 @@ const styles = StyleSheet.create({
     ...Platform.select({
       ios: {
         shadowColor: COLORS.shadow,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.18,
+        shadowRadius: 10,
       },
       android: {
-        elevation: 4,
+        elevation: 6,
       },
     }),
   },

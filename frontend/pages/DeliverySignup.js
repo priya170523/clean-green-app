@@ -1,9 +1,21 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView, Alert } from 'react-native';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  TouchableOpacity, 
+  KeyboardAvoidingView, 
+  Platform, 
+  ScrollView, 
+  Alert,
+  ActivityIndicator
+} from 'react-native';
 import InputField from '../components/InputField';
 import Button from '../components/Button';
-import { uploadAPI } from '../services/apiService';
+import { uploadAPI } from '../services/uploadService';
 import { authService } from '../services/authService';
+import { COLORS } from '../../theme/colors';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function DeliverySignup({ navigation }) {
   const [formData, setFormData] = useState({
@@ -18,8 +30,11 @@ export default function DeliverySignup({ navigation }) {
     aadharNo: '',
     termsAccepted: false
   });
-  const [aadharUrl, setAadharUrl] = useState('');
-  const [licenseUrl, setLicenseUrl] = useState('');
+  const [documents, setDocuments] = useState({
+    aadhar: { url: '', publicId: '' },
+    license: { url: '', publicId: '' }
+  });
+  const [uploadingDoc, setUploadingDoc] = useState('');
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -31,7 +46,7 @@ export default function DeliverySignup({ navigation }) {
       alert('Please fill in all required fields');
       return;
     }
-    if (!aadharUrl || !licenseUrl) {
+    if (!documents.aadhar.url || !documents.license.url) {
       alert('Please upload both Aadhar and License documents');
       return;
     }
@@ -47,7 +62,13 @@ export default function DeliverySignup({ navigation }) {
         password: formData.password,
         role: 'delivery',
         vehicleType: formData.vehicleType,
-        licenseNumber: formData.licenseNo
+        bikeType: formData.bikeType,
+        licenseNumber: formData.licenseNo,
+        aadharNumber: formData.aadharNo,
+        documents: {
+          aadhar: documents.aadhar,
+          license: documents.license
+        }
       };
       const res = await authService.register(payload);
       if (res.success) {
@@ -80,22 +101,81 @@ export default function DeliverySignup({ navigation }) {
     ]);
   };
 
+  const renderDocumentButton = (type) => {
+    const isUploading = uploadingDoc === type;
+    const hasDocument = !!documents[type]?.url;
+
+    return (
+      <TouchableOpacity
+        style={[styles.docButton, hasDocument && styles.docButtonSuccess]}
+        onPress={() => uploadDoc(type)}
+        disabled={isUploading}
+      >
+        {isUploading ? (
+          <ActivityIndicator color={COLORS.white} />
+        ) : (
+          <>
+            <Text style={styles.docButtonText}>
+              {hasDocument ? `${type.charAt(0).toUpperCase() + type.slice(1)} Uploaded` : `Upload ${type.charAt(0).toUpperCase() + type.slice(1)}`}
+            </Text>
+            {hasDocument && (
+              <Text style={styles.docButtonSubtext}>Tap to change</Text>
+            )}
+          </>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
   const uploadDoc = async (kind) => {
     try {
-      const picker = await import('expo-image-picker');
-      const result = await picker.launchImageLibraryAsync({ mediaTypes: picker.MediaTypeOptions.Images, quality: 0.8 });
-      if (result.canceled || !result.assets?.length) return;
-      const uri = result.assets[0].uri;
-      const res = await uploadAPI.uploadDocument(uri, kind);
-      if (res.status === 'success') {
-        if (kind === 'aadhar') setAadharUrl(res.data.imageUrl);
-        if (kind === 'license') setLicenseUrl(res.data.imageUrl);
-        Alert.alert('Uploaded', `${kind} uploaded successfully`);
-      } else {
-        Alert.alert('Upload Failed', res.message || 'Try again');
+      setUploadingDoc(kind);
+
+      // Request permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Sorry, we need camera roll permissions to upload documents.');
+        return;
       }
-    } catch (e) {
-      Alert.alert('Upload Error', e.response?.data?.message || 'Failed to upload');
+
+      // Launch image picker with optimized settings
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.4, // Further reduced quality for faster upload
+        exif: false,
+        base64: false,
+        allowsMultipleSelection: false,
+      });
+
+      if (result.canceled || !result.assets?.[0]?.uri) {
+        setUploadingDoc('');
+        return;
+      }
+
+      const uri = result.assets[0].uri;
+
+      // Upload document
+      const res = await uploadAPI.uploadDocument(uri, kind);
+      
+      if (res.success && res.data?.url) {
+        setDocuments(prev => ({
+          ...prev,
+          [kind]: {
+            url: res.data.url,
+            publicId: res.data.publicId
+          }
+        }));
+        Alert.alert('Success', `${kind.charAt(0).toUpperCase() + kind.slice(1)} uploaded successfully`);
+      } else {
+        throw new Error(res.message || 'Upload failed');
+      }
+    } catch (error) {
+      console.error(`Error uploading ${kind}:`, error);
+      Alert.alert('Upload Failed', error.message || 'Please try again');
+    } finally {
+      setUploadingDoc('');
     }
   };
 
@@ -204,16 +284,13 @@ export default function DeliverySignup({ navigation }) {
               style={styles.inputField}
             />
 
-            <View style={styles.uploadSection}>
-              <Text style={styles.uploadLabel}>Aadhar Upload:</Text>
-              <Button title={aadharUrl ? 'Re-upload' : 'Upload'} style={styles.uploadButton} onPress={() => uploadDoc('aadhar')} />
-              <Text style={styles.uploadNote}>Only jpeg, jpg or PDF</Text>
-            </View>
-
-            <View style={styles.uploadSection}>
-              <Text style={styles.uploadLabel}>License Upload:</Text>
-              <Button title={licenseUrl ? 'Re-upload' : 'Upload'} style={styles.uploadButton} onPress={() => uploadDoc('license')} />
-              <Text style={styles.uploadNote}>Only jpeg, jpg or PDF</Text>
+            <View style={styles.documentsSection}>
+              <Text style={styles.documentsTitle}>Upload Documents</Text>
+              <View style={styles.documentButtons}>
+                {renderDocumentButton('aadhar')}
+                {renderDocumentButton('license')}
+              </View>
+              <Text style={styles.uploadNote}>Please upload clear images of your documents (JPEG or PNG)</Text>
             </View>
 
             <TouchableOpacity 
@@ -252,6 +329,133 @@ export default function DeliverySignup({ navigation }) {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.white
+  },
+  scrollView: {
+    flex: 1
+  },
+  content: {
+    padding: 20
+  },
+  formTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    marginBottom: 20,
+    textAlign: 'center'
+  },
+  vehicleSelector: {
+    backgroundColor: COLORS.white,
+    borderWidth: 1,
+    borderColor: COLORS.gray,
+    borderRadius: 8,
+    padding: 15,
+    marginBottom: 15,
+  },
+  vehicleSelectorText: {
+    color: COLORS.text,
+    fontSize: 16,
+  },
+  documentsSection: {
+    marginVertical: 20,
+  },
+  documentsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+    marginBottom: 10,
+  },
+  documentButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  docButton: {
+    flex: 1,
+    backgroundColor: COLORS.primary,
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  docButtonSuccess: {
+    backgroundColor: COLORS.success,
+  },
+  docButtonText: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  docButtonSubtext: {
+    color: COLORS.white,
+    fontSize: 12,
+    marginTop: 4,
+  },
+  termsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+    borderRadius: 4,
+    marginRight: 10,
+  },
+  checkboxChecked: {
+    backgroundColor: COLORS.primary,
+  },
+  termsText: {
+    color: COLORS.text,
+    fontSize: 14,
+  },
+  signupButton: {
+    marginVertical: 20,
+  },
+  loginLink: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  loginLinkText: {
+    color: COLORS.primary,
+    fontSize: 14,
+  },
+  uploadNote: {
+    color: COLORS.gray,
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  documentButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  docButton: {
+    flex: 1,
+    backgroundColor: COLORS.primary,
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  docButtonSuccess: {
+    backgroundColor: COLORS.success,
+  },
+  docButtonText: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  docButtonSubtext: {
+    color: COLORS.white,
+    fontSize: 12,
+    marginTop: 4,
+  },
   container: {
     flex: 1,
     backgroundColor: '#F1F8E9', // Very very light green background
