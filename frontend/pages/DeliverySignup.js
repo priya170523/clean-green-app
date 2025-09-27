@@ -138,9 +138,9 @@ export default function DeliverySignup({ navigation }) {
         return;
       }
 
-      // Launch image picker with optimized settings
+      // Launch image picker with updated API (fix deprecation warning)
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: [ImagePicker.MediaType.IMAGE],
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.4, // Further reduced quality for faster upload

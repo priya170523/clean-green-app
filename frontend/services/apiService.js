@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import axios from 'axios';
 
 // Base URL for the API
@@ -503,34 +504,77 @@ export const uploadAPI = {
         throw new Error('No auth token found');
       }
 
-      const formData = new FormData();
-      formData.append('image', {
+      // Get file extension and mime type
+      const fileExtension = imageUri.split('.').pop()?.toLowerCase() || 'jpg';
+      const mimeType = fileExtension === 'png' ? 'image/png' : 'image/jpeg';
+      
+      // Create unique filename with timestamp
+      const timestamp = new Date().getTime();
+      const filename = `image_${timestamp}.${fileExtension}`;
+
+      // Validate image URI
+      if (!imageUri || typeof imageUri !== 'string') {
+        console.error('Invalid image URI:', imageUri);
+        throw new Error('Invalid image URI provided');
+      }
+
+      console.log('Creating form data for upload:', {
         uri: imageUri,
-        type: 'image/jpeg', // Fallback; actual type may vary (e.g., image/png)
-        name: 'image.jpg',
+        type: mimeType,
+        filename: filename,
+        platform: Platform.OS
       });
 
-      console.log('Uploading image with fetch:', { uri: imageUri });
+      // Create form data with proper structure for React Native
+      const formData = new FormData();
+      formData.append('image', {
+        uri: imageUri,  // Keep original URI as React Native handles it correctly
+        type: mimeType,
+        name: filename,
+      });
+
+      console.log('Sending upload request to:', `${BASE_URL}/uploads/image`);
 
       const response = await fetch(`${BASE_URL}/uploads/image`, {
         method: 'POST',
         body: formData,
         headers: {
+          'Accept': 'application/json',
           'Authorization': `Bearer ${token}`,
-          // Do not set Content-Type; let browser/fetch set it with boundary
         },
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      // Log response status and headers
+      console.log('Upload response:', {
+        status: response.status,
+        ok: response.ok,
+        headers: Object.fromEntries(response.headers.entries())
+      });
+
+      const responseText = await response.text();
+      console.log('Raw response:', responseText);
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Failed to parse response:', e);
+        throw new Error('Invalid response from server');
       }
 
-      const data = await response.json();
+      if (!response.ok) {
+        console.error('Upload failed:', data);
+        throw new Error(data.message || `HTTP error! status: ${response.status}`);
+      }
+
       console.log('Upload successful:', data);
       return data;
     } catch (error) {
-      console.error('Fetch upload error:', error);
+      console.error('Upload error details:', {
+        name: error.name,
+        message: error.message,
+        stack: error.stack
+      });
       throw error;
     }
   },

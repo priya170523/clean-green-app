@@ -139,6 +139,11 @@ export default function WasteUploadNew({ navigation }) {
         allowsMultipleSelection: false,
       });
 
+      console.log('Image picker result:', {
+        canceled: result.canceled,
+        assets: result.assets ? result.assets.length : 0
+      });
+
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const newImage = result.assets[0]; // Get the first (and only) image from the array
         setImages(prev => [...prev, newImage]);
@@ -147,8 +152,24 @@ export default function WasteUploadNew({ navigation }) {
         await uploadSingleImage(newImage);
       }
     } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Failed to select image');
+      console.error('Error picking image:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack
+      });
+      
+      // Show user-friendly error message
+      Alert.alert(
+        'Error',
+        'Failed to select image. Please try again.'
+      );
+
+      // Log ImagePicker availability
+      console.log('ImagePicker status:', {
+        isAvailable: !!ImagePicker,
+        hasMediaTypeOptions: !!ImagePicker.MediaTypeOptions,
+        supportedMediaTypes: Object.keys(ImagePicker.MediaTypeOptions || {})
+      });
     }
   };
 
@@ -156,13 +177,26 @@ export default function WasteUploadNew({ navigation }) {
     try {
       setUploadingImages(true);
 
-      console.log('Uploading image:', image.uri);
-      const response = await uploadAPI.uploadImage(image.uri);
+      console.log('Preparing to upload image:', {
+        uri: image.uri,
+        type: image.type || 'image/jpeg',
+        width: image.width,
+        height: image.height
+      });
 
-      if (response.status === 'success') {
-        setUploadedImages(prev => [...prev, response.data.imageUrl]);
-        console.log('Image uploaded successfully:', response.data.imageUrl);
+      const response = await uploadAPI.uploadImage(image.uri);
+      
+      console.log('Upload API response:', {
+        success: response.success,
+        hasData: !!response.data,
+        url: response.data?.url
+      });
+
+      if (response.success && response.data && response.data.url) {
+        setUploadedImages(prev => [...prev, response.data.url]);
+        console.log('Image uploaded successfully:', response.data.url);
       } else {
+        console.error('Upload failed, response:', response);
         throw new Error(response.message || 'Upload failed');
       }
     } catch (error) {

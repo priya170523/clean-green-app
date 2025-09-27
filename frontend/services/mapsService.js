@@ -31,68 +31,18 @@ const rateLimitedRequest = async (requestFn, retryCount = 0) => {
 export const getDirections = async (origin, destination, options = {}) => {
   console.log('Getting directions:', { origin, destination });
 
-  try {
-
-    // Validate coordinates
-    if (!origin?.latitude || !origin?.longitude || !destination?.latitude || !destination?.longitude) {
-      console.error('Invalid coordinates provided:', { origin, destination });
-      return {
-        success: false,
-        error: 'Invalid coordinates provided',
-        details: { origin, destination }
-      };
-    }
-      // Use OSRM fallback service
-      const routingProfile = 'driving';
-      const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}?overview=full&geometries=polyline`;
-      
-      const response = await axios.get(osrmUrl, {
-        params: {
-          api_key: OPENROUTE_API_KEY,
-          start: `${origin.longitude},${origin.latitude}`,
-          end: `${destination.longitude},${destination.latitude}`,
-          profile: routingProfile,
-          format: 'json',
-          options: JSON.stringify({
-            avoid_tolls: options.avoid?.includes('tolls') || false,
-            avoid_highways: options.avoid?.includes('highways') || false,
-            prefer_roads: true,
-            optimize_route: options.optimize || true
-          }),
-        },
-      });
-
-      if (response.data.features && response.data.features.length > 0) {
-        const feature = response.data.features[0];
-        const coordinates = feature.geometry.coordinates;
-        
-        // Convert coordinates to waypoints
-        const waypoints = coordinates.map(coord => ({
-          latitude: coord[1],
-          longitude: coord[0],
-        }));
-        
-        const properties = feature.properties;
-        const summary = properties.summary;
-        
-        return {
-          success: true,
-          waypoints: waypoints,
-          distance: `${(summary.distance / 1000).toFixed(1)} km`,
-          duration: `${Math.round(summary.duration / 60)} mins`,
-          startLocation: origin,
-          endLocation: destination,
-        };
-      }
-    
-    // Fallback to OSRM (Open Source Routing Machine) - completely free
-    return await getOSRMDirections(origin, destination);
-    
-  } catch (error) {
-    console.error('OpenRouteService API Error:', error);
-    // Fallback to OSRM
-    return await getOSRMDirections(origin, destination);
+  // Validate coordinates
+  if (!origin?.latitude || !origin?.longitude || !destination?.latitude || !destination?.longitude) {
+    console.error('Invalid coordinates provided:', { origin, destination });
+    return {
+      success: false,
+      error: 'Invalid coordinates provided',
+      details: { origin, destination }
+    };
   }
+
+  // Use OSRM (Open Source Routing Machine) - completely free, no API key required
+  return await getOSRMDirections(origin, destination, options);
 };
 
 // OSRM (Open Source Routing Machine) - completely free, no API key required
