@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
 // Base URL for the API
-const BASE_URL = 'http://172.26.0.213:5000/api'; // WiFi IP for physical device
+const BASE_URL = 'http://192.168.214.241:5000/api'; // WiFi IP for physical device
 
 // Create axios instance
 const api = axios.create({

@@ -53,6 +53,25 @@ export default function WasteUploadNew({ navigation }) {
     const initData = async () => {
       try {
         setLoading(true);
+        
+        // Check if user is authenticated first
+        const isAuth = await authService.isAuthenticated();
+        if (!isAuth) {
+          if (mounted) {
+            Alert.alert(
+              'Authentication Required',
+              'Please log in to continue',
+              [
+                {
+                  text: 'OK',
+                  onPress: () => navigation.navigate('UserProfileSelector')
+                }
+              ]
+            );
+          }
+          return;
+        }
+
         // Get current user
         const user = await authService.getCurrentUser();
         if (mounted) {
@@ -63,7 +82,16 @@ export default function WasteUploadNew({ navigation }) {
       } catch (error) {
         console.error('Error initializing data:', error);
         if (mounted) {
-          Alert.alert('Error', 'Failed to load user data');
+          Alert.alert(
+            'Error',
+            'Failed to load user data. Please try logging in again.',
+            [
+              {
+                text: 'OK',
+                onPress: () => navigation.navigate('UserProfileSelector')
+              }
+            ]
+          );
         }
       } finally {
         if (mounted) {

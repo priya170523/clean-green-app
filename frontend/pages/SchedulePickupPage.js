@@ -1,12 +1,50 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { pickupAPI } from '../services/apiService';
+import { authService } from '../services/authService';
 
 export default function SchedulePickupPage({ navigation, route }) {
   const { wasteType, foodBoxes, bottles, otherItems, images, address } = route.params || {};
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTimeSlot, setSelectedTimeSlot] = useState('');
   const [loading, setLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const auth = await authService.isAuthenticated();
+        if (!auth) {
+          Alert.alert(
+            'Authentication Required',
+            'Please log in to continue',
+            [
+              {
+                text: 'OK',
+                onPress: () => navigation.navigate('UserProfileSelector')
+              }
+            ]
+          );
+          return;
+        }
+        setIsAuthenticated(true);
+      } catch (error) {
+        console.error('Auth check error:', error);
+        Alert.alert(
+          'Error',
+          'Authentication failed. Please try logging in again.',
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.navigate('UserProfileSelector')
+            }
+          ]
+        );
+      }
+    };
+
+    checkAuth();
+  }, [navigation]);
 
   const timeSlots = [
     '10:00 to 11:00',
@@ -16,6 +54,10 @@ export default function SchedulePickupPage({ navigation, route }) {
   ];
 
   const handleSchedule = async () => {
+    if (!isAuthenticated) {
+      Alert.alert('Error', 'Please log in to schedule pickup');
+      return;
+    }
     if (!selectedTimeSlot) {
       Alert.alert('Error', 'Please select a time slot');
       return;
@@ -88,6 +130,20 @@ export default function SchedulePickupPage({ navigation, route }) {
   const handleBack = () => {
     navigation.goBack();
   };
+
+  if (!isAuthenticated) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Schedule Pickup</Text>
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#00C897" />
+          <Text style={styles.loadingText}>Checking authentication...</Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -261,5 +317,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#222',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
   },
 });

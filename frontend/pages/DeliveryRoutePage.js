@@ -28,18 +28,20 @@ import {
 
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { getDirections } from '../services/mapsService';
+import { getDirections, getFallbackDirections } from '../services/mapsService';
 import { dummyNotifications } from '../services/dummyData';
-import pickupAPI from '../services/pickupService';
+import { pickupAPI } from '../services/apiService';
 import { api } from '../services/api';
 import * as ImagePicker from 'expo-image-picker';
 
 export default function DeliveryRoutePage({ navigation, route }) {
-  const { pickupData } = route.params || {};
-  const [currentLocation, setCurrentLocation] = useState({
-    latitude: 12.9756, // Default location (Bangalore)
-    longitude: 77.5996,
-  });
+  const { pickupData, agentLocation } = route.params || {};
+  const [currentLocation, setCurrentLocation] = useState(
+    agentLocation || {
+      latitude: 12.9756, // Default location (Bangalore)
+      longitude: 77.5996,
+    }
+  );
   const [pickupLocation, setPickupLocation] = useState(null);
   const [routeWaypoints, setRouteWaypoints] = useState([]);
   const [routeInfo, setRouteInfo] = useState(null);
@@ -56,34 +58,85 @@ export default function DeliveryRoutePage({ navigation, route }) {
   useEffect(() => {
     (async () => {
       try {
+        // If agentLocation was provided, use it as initial location
+        if (agentLocation) {
+          console.log('Using provided agent location:', agentLocation);
+          setCurrentLocation(agentLocation);
+          setLocationLoaded(true);
+        }
+
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
           const location = await Location.getCurrentPositionAsync({});
-          setCurrentLocation({
+          const newLocation = {
             latitude: location.coords.latitude,
             longitude: location.coords.longitude,
-          });
+          };
+          console.log('Got real-time location:', newLocation);
+          setCurrentLocation(newLocation);
           setLocationLoaded(true);
         } else {
-          console.warn('Location permission denied');
+          console.warn('Location permission denied, using provided location or default');
+          if (!agentLocation) {
+            setLocationLoaded(true);
+          }
         }
       } catch (error) {
         console.error('Error getting current location:', error);
+        if (!agentLocation) {
+          setLocationLoaded(true);
+        }
       }
     })();
-  }, []);
+  }, [agentLocation]);
 
   // Initialize pickup location from pickup data
   useEffect(() => {
     if (pickupData) {
-      const userAddress = pickupData.user?.address;
-      if (userAddress && userAddress.latitude && userAddress.longitude) {
-        setPickupLocation({
-          latitude: userAddress.latitude,
-          longitude: userAddress.longitude,
-        });
+      console.log('Pickup data received:', pickupData);
+      
+      // Try multiple possible locations for pickup address
+      let pickupCoords = null;
+      
+      // Check user.address first
+      if (pickupData.user?.address?.latitude && pickupData.user?.address?.longitude) {
+        pickupCoords = {
+          latitude: pickupData.user.address.latitude,
+          longitude: pickupData.user.address.longitude,
+        };
+        console.log('Using user.address coordinates:', pickupCoords);
+      }
+      // Check address field directly
+      else if (pickupData.address?.latitude && pickupData.address?.longitude) {
+        pickupCoords = {
+          latitude: pickupData.address.latitude,
+          longitude: pickupData.address.longitude,
+        };
+        console.log('Using address coordinates:', pickupCoords);
+      }
+      // Check if address is populated with coordinates
+      else if (pickupData.address?.coordinates?.latitude && pickupData.address?.coordinates?.longitude) {
+        pickupCoords = {
+          latitude: pickupData.address.coordinates.latitude,
+          longitude: pickupData.address.coordinates.longitude,
+        };
+        console.log('Using address.coordinates:', pickupCoords);
+      }
+      // Check if there's a direct location field
+      else if (pickupData.latitude && pickupData.longitude) {
+        pickupCoords = {
+          latitude: pickupData.latitude,
+          longitude: pickupData.longitude,
+        };
+        console.log('Using direct coordinates:', pickupCoords);
+      }
+      
+      if (pickupCoords) {
+        setPickupLocation(pickupCoords);
+        console.log('Pickup location set:', pickupCoords);
       } else {
-        // Fallback: use default location if user address coordinates not available
+        // Fallback: use default location if no coordinates found
+        console.log('No pickup coordinates found, using default location');
         setPickupLocation({
           latitude: 12.9756,
           longitude: 77.5996,
@@ -100,11 +153,17 @@ export default function DeliveryRoutePage({ navigation, route }) {
   }, [currentLocation, pickupLocation]);
 
   const calculateRoute = async () => {
-    if (!pickupLocation) return;
+    if (!pickupLocation || !currentLocation) {
+      console.log('Missing location data for route calculation:', { currentLocation, pickupLocation });
+      return;
+    }
 
+    console.log('Calculating route from:', currentLocation, 'to:', pickupLocation);
     setLoading(true);
+    
     try {
       const result = await getDirections(currentLocation, pickupLocation);
+      console.log('Route calculation result:', result);
 
       if (result.success) {
         setRouteWaypoints(result.waypoints);
@@ -112,14 +171,16 @@ export default function DeliveryRoutePage({ navigation, route }) {
           distance: result.distance,
           duration: result.duration,
         });
+        console.log('Route calculated successfully:', { waypoints: result.waypoints.length, distance: result.distance, duration: result.duration });
       } else {
-        console.log('Using fallback route calculation');
+        console.log('Primary route calculation failed, using fallback:', result.error);
         const fallbackResult = getFallbackDirections(currentLocation, pickupLocation);
         setRouteWaypoints(fallbackResult.waypoints);
         setRouteInfo({
           distance: fallbackResult.distance,
           duration: fallbackResult.duration,
         });
+        console.log('Fallback route calculated:', { waypoints: fallbackResult.waypoints.length, distance: fallbackResult.distance, duration: fallbackResult.duration });
       }
     } catch (error) {
       console.error('Route calculation error:', error);
@@ -129,6 +190,7 @@ export default function DeliveryRoutePage({ navigation, route }) {
         distance: fallbackResult.distance,
         duration: fallbackResult.duration,
       });
+      console.log('Error fallback route calculated:', { waypoints: fallbackResult.waypoints.length, distance: fallbackResult.distance, duration: fallbackResult.duration });
     } finally {
       setLoading(false);
     }
@@ -153,14 +215,14 @@ export default function DeliveryRoutePage({ navigation, route }) {
 
   const handleReached = async () => {
     try {
-      await pickupAPI.updatePickupStatus(pickupData._id, 'in_progress', null, 'Reached pickup location');
+      await pickupAPI.updatePickupStatus(pickupData._id, 'in_progress', null, 'Reached pickup location', null);
       setPickupStatus('reached');
       setShowPickedButton(true);
       setShowReachedButton(false);
       Alert.alert('Status Updated', 'You have reached the pickup location!');
     } catch (error) {
       console.error('Error updating status:', error);
-      Alert.alert('Error', 'Failed to update status');
+      Alert.alert('Error', 'Failed to update status: ' + (error.message || 'Unknown error'));
     }
   };
 
@@ -339,10 +401,10 @@ export default function DeliveryRoutePage({ navigation, route }) {
               style={styles.map}
               provider={PROVIDER_GOOGLE}
               region={{
-                latitude: (currentLocation.latitude + (pickupLocation?.latitude || 0)) / 2,
-                longitude: (currentLocation.longitude + (pickupLocation?.longitude || 0)) / 2,
-                latitudeDelta: 0.02,
-                longitudeDelta: 0.02,
+                latitude: (currentLocation.latitude + (pickupLocation?.latitude || currentLocation.latitude)) / 2,
+                longitude: (currentLocation.longitude + (pickupLocation?.longitude || currentLocation.longitude)) / 2,
+                latitudeDelta: Math.max(0.01, Math.abs(currentLocation.latitude - (pickupLocation?.latitude || currentLocation.latitude)) * 1.5),
+                longitudeDelta: Math.max(0.01, Math.abs(currentLocation.longitude - (pickupLocation?.longitude || currentLocation.longitude)) * 1.5),
               }}
               showsUserLocation={true}
               showsMyLocationButton={true}

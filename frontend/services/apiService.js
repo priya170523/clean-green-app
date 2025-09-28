@@ -7,7 +7,7 @@ import axios from 'axios';
 // For physical device: use host machine's WiFi IP (run `ipconfig` to find it, e.g., 192.168.x.x)
 // For iOS simulator: use localhost
 // Note: Update this IP to match your host machine's IP accessible from your device/emulator
-const BASE_URL = 'http://172.26.0.213:5000/api'; // WiFi IP for physical device
+const BASE_URL = 'http://192.168.214.241:5000/api'; // WiFi IP for physical device
 
 // Create axios instance
 const api = axios.create({
@@ -280,13 +280,25 @@ export const pickupAPI = {
 
   // Update pickup status
   updatePickupStatus: async (pickupId, status, location, notes, distanceKm) => {
-    const response = await api.put(`/pickups/${pickupId}/status`, {
-      status,
-      location,
-      notes,
-      distanceKm,
-    });
-    return response.data;
+    try {
+      const requestBody = {
+        status,
+        location: location || null,
+        notes: notes || null,
+        distanceKm: distanceKm || null,
+      };
+      
+      console.log('Updating pickup status:', {
+        pickupId,
+        requestBody
+      });
+      
+      const response = await api.put(`/pickups/${pickupId}/status`, requestBody);
+      return response.data;
+    } catch (error) {
+      console.error('Error updating pickup status:', error);
+      throw error;
+    }
   },
 
   // Rate pickup

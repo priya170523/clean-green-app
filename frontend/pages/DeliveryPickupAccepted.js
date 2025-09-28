@@ -31,20 +31,21 @@ export default function DeliveryPickupAccepted({ navigation, route }) {
 
   const handleReached = async () => {
     try {
-      await pickupAPI.updatePickupStatus(pickupData?._id, 'in_progress', null, 'Agent reached pickup');
+      await pickupAPI.updatePickupStatus(pickupData?._id, 'in_progress', null, 'Agent reached pickup', null);
       setPickupStatus('reached');
       setShowPickedButton(true);
       setShowReachedButton(false);
       Alert.alert('Status Updated', 'You have marked as reached the pickup location!');
     } catch (e) {
-      Alert.alert('Error', 'Failed to update status');
+      console.error('Error updating status:', e);
+      Alert.alert('Error', 'Failed to update status: ' + (e.message || 'Unknown error'));
     }
   };
 
   const handlePicked = async () => {
     try {
       // Keep status in_progress while moving to warehouse
-      await pickupAPI.updatePickupStatus(pickupData?._id, 'in_progress', null, 'Waste picked, en route to warehouse');
+      await pickupAPI.updatePickupStatus(pickupData?._id, 'in_progress', null, 'Waste picked, en route to warehouse', null);
       setPickupStatus('picked');
       Alert.alert('Pickup Updated', 'Proceed to warehouse for submission.');
       navigation.navigate('WarehouseNavigation', {
