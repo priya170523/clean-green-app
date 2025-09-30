@@ -165,6 +165,45 @@ router.post('/image', protect, (req, res, next) => {
   }
 });
 
+// Public image upload for pre-registration (no auth required)
+router.post('/public-image', upload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+
+    if (req.file.size > 10 * 1024 * 1024) {
+      return res.status(400).json({ success: false, message: 'File too large. Maximum size is 10MB' });
+    }
+
+    if (!['image/jpeg', 'image/png'].includes(req.file.mimetype)) {
+      return res.status(400).json({ success: false, message: 'Only JPEG and PNG images are allowed' });
+    }
+
+    const result = await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Cloudinary upload timed out')), 60000);
+      const uploadStream = cloudinary.uploader.upload_stream(
+        { folder: 'delivery_documents', resource_type: 'auto' },
+        (error, result) => {
+          clearTimeout(timeout);
+          if (error) return reject(error);
+          if (!result || !result.secure_url || !result.public_id) return reject(new Error('Cloudinary upload failed: invalid result'));
+          resolve(result);
+        }
+      );
+      uploadStream.end(req.file.buffer);
+    });
+
+    res.status(200).json({
+      success: true,
+      data: { url: result.secure_url, publicId: result.public_id }
+    });
+  } catch (error) {
+    console.error('Public upload error:', error);
+    res.status(500).json({ success: false, message: error.message || 'Failed to upload document' });
+  }
+});
+
 // Update document info in database
 router.post('/document-info', protect, async (req, res) => {
   try {

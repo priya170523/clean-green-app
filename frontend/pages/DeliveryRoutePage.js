@@ -31,7 +31,7 @@ import * as Location from 'expo-location';
 import { getDirections, getFallbackDirections } from '../services/mapsService';
 import { dummyNotifications } from '../services/dummyData';
 import { pickupAPI } from '../services/apiService';
-import { api } from '../services/api';
+import api from '../services/apiService';
 import * as ImagePicker from 'expo-image-picker';
 
 export default function DeliveryRoutePage({ navigation, route }) {

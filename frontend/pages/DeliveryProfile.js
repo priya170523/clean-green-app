@@ -108,7 +108,7 @@ export default function DeliveryProfile({ navigation }) {
               await authService.logout();
               navigation.reset({
                 index: 0,
-                routes: [{ name: 'UserProfileSelector' }],
+                routes: [{ name: 'Auth' }],
               });
             } catch (error) {
               console.error('Logout error:', error);

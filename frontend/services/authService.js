@@ -5,11 +5,14 @@ import { notificationService } from './notificationService';
 // Authentication service with backend integration
 export const authService = {
   // Login function
-  login: async (email, password) => {
+  login: async (credentials) => {
     try {
-      console.log('Login button pressed!', { email, password });
+      if (!credentials.role || !['user', 'delivery'].includes(credentials.role)) {
+        throw new Error('Invalid role specified');
+      }
 
-      const response = await authAPI.login({ email, password });
+      console.log('Login button pressed!', credentials);
+      const response = await authAPI.login(credentials);
 
       if (response.status === 'success') {
         const { user, token } = response.data;
@@ -24,7 +27,7 @@ export const authService = {
         notificationService.joinUserRoom(user._id);
 
         console.log(`${user.role} login successful`);
-        return { success: true, user, token };
+        return { success: true, data: { user, token } };
       } else {
         return { success: false, message: response.message };
       }

@@ -18,6 +18,8 @@ export default function SpinningWheel({ onSpinComplete, disabled }) {
   const [result, setResult] = useState(null);
   const spinValue = useRef(new Animated.Value(0)).current;
 
+  console.log('SpinningWheel rendered with disabled:', disabled);
+
   const spin = () => {
     if (isSpinning || disabled) return;
     setIsSpinning(true);
@@ -59,7 +61,9 @@ export default function SpinningWheel({ onSpinComplete, disabled }) {
         <Image 
           source={require('../assets/spin-wheel.jpg')} 
           style={styles.wheel} 
-          resizeMode="contain" 
+          resizeMode="contain"
+          onError={(error) => console.log('Image load error:', error)}
+          onLoad={() => console.log('Spin wheel image loaded successfully')}
         />
       </Animated.View>
 

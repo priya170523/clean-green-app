@@ -1,16 +1,15 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import AppNavigator from './frontend/navigation/AppNavigator';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import Constants from 'expo-constants';
+import UserAppNavigator from './frontend/navigation/UserAppNavigator';
+import DeliveryAppNavigator from './frontend/navigation/DeliveryAppNavigator';
 
 export default function App() {
+  const appTarget = (Constants?.expoConfig?.extra?.appTarget) || 'user';
   return (
-    <SafeAreaProvider>
-      <NavigationContainer>
-        <StatusBar style="dark" />
-        <AppNavigator />
-      </NavigationContainer>
-    </SafeAreaProvider>
+    <>
+      <StatusBar style="dark" />
+      {appTarget === 'delivery' ? <DeliveryAppNavigator /> : <UserAppNavigator />}
+    </>
   );
 }

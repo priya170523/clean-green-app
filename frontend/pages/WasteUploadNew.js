@@ -64,7 +64,7 @@ export default function WasteUploadNew({ navigation }) {
               [
                 {
                   text: 'OK',
-                  onPress: () => navigation.navigate('UserProfileSelector')
+                  onPress: () => navigation.navigate('Auth')
                 }
               ]
             );
@@ -88,7 +88,7 @@ export default function WasteUploadNew({ navigation }) {
             [
               {
                 text: 'OK',
-                onPress: () => navigation.navigate('UserProfileSelector')
+                onPress: () => navigation.navigate('Auth')
               }
             ]
           );

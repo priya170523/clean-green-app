@@ -96,7 +96,15 @@ router.post('/login', [
       });
     }
 
-    const { email, password } = req.body;
+    const { email, password, role } = req.body;
+
+    // Ensure role is provided and valid
+    if (!role || !['user', 'delivery'].includes(role)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Invalid role specified'
+      });
+    }
 
     // Find user and include password for comparison
     const user = await User.findOne({ email }).select('+password');

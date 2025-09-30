@@ -23,11 +23,15 @@ export default function Rewards({ navigation }) {
   const loadRewards = async () => {
     try {
       setLoading(true);
+      console.log('Loading rewards and progress...');
+      
       const [rewardsRes, earnedRes, progressRes] = await Promise.all([
         rewardAPI.getRewards(1, 20, 'active'),
         rewardAPI.getRewards(1, 20, 'all'),
         rewardAPI.getProgress()
       ]);
+      
+      console.log('API responses:', { rewardsRes, earnedRes, progressRes });
 
       if (rewardsRes.status === 'success') {
         setRewards(rewardsRes.data.rewards || rewardsRes.data || []);
@@ -41,9 +45,20 @@ export default function Rewards({ navigation }) {
         setTotalPoints(progressRes.data.totalPoints || 0);
         setCurrentLevel(progressRes.data.currentLevel || 1);
 
+        // Debug logging
+        console.log('Progress data:', progressRes.data);
+        console.log('Can spin:', progressRes.data.canSpin);
+        console.log('Wheel spun this cycle:', progressRes.data.wheelSpunThisCycle);
+        console.log('Total waste:', progressRes.data.totalWaste);
+
         // Show wheel only if user has submitted waste and hasn't spun yet
         const canSpinNow = progressRes.data.canSpin;
-        setShowWheel(canSpinNow);
+        
+        // For testing purposes, always show the wheel if user has any points
+        const hasPoints = (progressRes.data.totalPoints || 0) > 0;
+        const shouldShowWheel = canSpinNow || hasPoints;
+        
+        setShowWheel(shouldShowWheel);
         setCanSpin(canSpinNow);
 
         // If there's a first-time coupon, add it to earned rewards
@@ -187,6 +202,20 @@ export default function Rewards({ navigation }) {
                 : isSpinning
                 ? 'Processing your spin...'
                 : 'Spin the wheel to win rewards! (Unlocked after submitting waste)'}
+            </Text>
+          </View>
+        )}
+
+        {/* Debug: Always show wheel for testing */}
+        {!showWheel && (
+          <View style={styles.wheelContainer}>
+            <Text style={styles.wheelTitle}>Debug: Spin the wheel (Always visible for testing)</Text>
+            <SpinningWheel 
+              onSpinComplete={handleSpinComplete} 
+              disabled={false} 
+            />
+            <Text style={styles.wheelInfoText}>
+              This wheel is always visible for testing purposes
             </Text>
           </View>
         )}

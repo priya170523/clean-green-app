@@ -5,7 +5,7 @@ import InputField from '../components/InputField';
 import Button from '../components/Button';
 import { authService } from '../services/authService';
 
-export default function UserSignup({ navigation }) {
+export default function UserSignup({ navigation, forcedRole }) {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -38,7 +38,7 @@ export default function UserSignup({ navigation }) {
         email: formData.email,
         phone: formData.phone,
         password: formData.password,
-        role: 'user'
+        role: forcedRole === 'delivery' ? 'delivery' : 'user'
       };
 
       const result = await authService.register(userData);
@@ -47,7 +47,7 @@ export default function UserSignup({ navigation }) {
         Alert.alert('Success', 'Account created successfully!', [
           {
             text: 'OK',
-            onPress: () => navigation.replace('Main')
+            onPress: () => navigation.replace(forcedRole === 'delivery' ? 'DeliveryMain' : 'Main')
           }
         ]);
       } else {
@@ -74,12 +74,16 @@ export default function UserSignup({ navigation }) {
             </View>
             <Text style={styles.logoTitle}>CleanGreen</Text>
           </View>
-          <Text style={styles.motivationalText}>Hurray! First Step towards Green India.</Text>
+          <Text style={styles.motivationalText}>
+            {forcedRole === 'delivery' ? 'Join our Delivery Partners and earn with CleanGreen.' : 'Hurray! First Step towards Green India.'}
+          </Text>
         </View>
 
         <View style={styles.content}>
           <View style={styles.formContainer}>
-            <Text style={styles.formTitle}>Create Your Account</Text>
+            <Text style={styles.formTitle}>
+              {forcedRole === 'delivery' ? 'Create Delivery Account' : 'Create Your Account'}
+            </Text>
             
             <InputField 
               label="Name" 

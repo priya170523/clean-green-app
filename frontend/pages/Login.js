@@ -7,9 +7,9 @@ import InputField from '../components/InputField';
 import Button from '../components/Button';
 import { authService } from '../services/authService';
 
-export default function Login({ navigation }) {
+export default function Login({ navigation, forcedRole }) {
   const [tab, setTab] = useState('login');
-  const [role, setRole] = useState('user');
+  const [role, setRole] = useState(forcedRole || 'user');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -29,8 +29,17 @@ export default function Login({ navigation }) {
   };
 
   const handleLogin = async () => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!formData.email || !formData.password) {
-      Alert.alert('Error', 'Please fill in all fields');
+      Alert.alert('Error', 'Email and password are required');
+      return;
+    }
+    if (!emailRegex.test(formData.email)) {
+      Alert.alert('Error', 'Please enter a valid email');
+      return;
+    }
+    if (formData.password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters');
       return;
     }
 
@@ -61,37 +70,7 @@ export default function Login({ navigation }) {
     }
   };
 
-  const handleSignup = async () => {
-    if (!formData.name || !formData.email || !formData.password || !formData.phone) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const signupData = {
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        phone: formData.phone,
-        role: role
-      };
-
-      const response = await authService.register(signupData);
-
-      if (response.success) {
-        Alert.alert('Success', 'Account created successfully! Please login.');
-        setTab('login');
-      } else {
-        Alert.alert('Registration Failed', response.message || 'Failed to create account');
-      }
-    } catch (error) {
-      console.error('Signup error:', error);
-      Alert.alert('Error', 'Registration failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Registration is moved to dedicated signup screen
 
   const switchRole = (newRole) => {
     if (newRole === role) return;
@@ -135,7 +114,8 @@ export default function Login({ navigation }) {
       </LinearGradient>
 
       <View style={styles.content}>
-        {/* Role Selection */}
+        {/* Role Selection hidden when forcedRole is present */}
+        {!forcedRole && (
         <View style={styles.roleSelector}>
           <TouchableOpacity
             style={[styles.roleTab, role === 'user' && styles.activeRoleTab]}
@@ -176,6 +156,7 @@ export default function Login({ navigation }) {
             </Animated.View>
           </TouchableOpacity>
         </View>
+        )}
 
         {/* Login Form */}
         {!showSplash && (
@@ -183,16 +164,13 @@ export default function Login({ navigation }) {
           opacity: switchAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.5] }),
           transform: [{ scale: switchAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 0.98] }) }]
         }]}>        
-          <View style={styles.tabRow}>
-            <TouchableOpacity onPress={() => setTab('login')}>
-              <Text style={[styles.tab, tab === 'login' && styles.activeTab]}>Login</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setTab('register')}>
-              <Text style={[styles.tab, tab === 'register' && styles.activeTab]}>Register</Text>
-            </TouchableOpacity>
+          <View style={{ marginBottom: 12 }}>
+            <Text style={{ textAlign: 'center', color: '#2E7D32', fontWeight: '700', fontSize: 16 }}>
+              {role === 'delivery' ? 'Login to continue your deliveries' : 'Login to continue your journey'}
+            </Text>
           </View>
 
-          {tab === 'login' ? (
+          {
             <View style={styles.form}>
               <InputField
                 label="Email"
@@ -220,56 +198,14 @@ export default function Login({ navigation }) {
                 <Text style={styles.forgotPasswordText}>Forgot password?</Text>
               </TouchableOpacity>
             </View>
-          ) : (
-            <View style={styles.form}>
-              <InputField
-                label="Full Name"
-                placeholder="Enter your full name"
-                value={formData.name}
-                onChangeText={(value) => handleInputChange('name', value)}
-                style={styles.inputField}
-              />
-              <InputField
-                label="Email"
-                keyboardType="email-address"
-                placeholder="Enter your email"
-                value={formData.email}
-                onChangeText={(value) => handleInputChange('email', value)}
-                style={styles.inputField}
-              />
-              <InputField
-                label="Phone"
-                keyboardType="phone-pad"
-                placeholder="Enter your phone number"
-                value={formData.phone}
-                onChangeText={(value) => handleInputChange('phone', value)}
-                style={styles.inputField}
-              />
-              <InputField
-                label="Password"
-                secureTextEntry
-                placeholder="Create a password"
-                value={formData.password}
-                onChangeText={(value) => handleInputChange('password', value)}
-                style={styles.inputField}
-              />
-              <Button
-                title={loading ? "Creating Account..." : "Create Account"}
-                onPress={handleSignup}
-                style={styles.registerButton}
-                disabled={loading}
-              />
-            </View>
-          )}
+          }
 
           <View style={styles.signupPrompt}>
             <Text style={styles.signupText}>
-              {tab === 'login' ? "Don't have an account? " : "Already have an account? "}
+              {"Don't have an account? "}
             </Text>
-            <TouchableOpacity onPress={() => setTab(tab === 'login' ? 'register' : 'login')}>
-              <Text style={styles.signupLink}>
-                {tab === 'login' ? 'Signup' : 'Login'}
-              </Text>
+            <TouchableOpacity onPress={() => navigation.navigate(role === 'delivery' ? 'DeliverySignup' : 'UserSignup')}>
+              <Text style={styles.signupLink}>Signup</Text>
             </TouchableOpacity>
           </View>
         </Animated.View>

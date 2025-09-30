@@ -67,11 +67,11 @@ const retryUpload = async (fn, retries = 3, delay = 1000) => {
 // Upload API functions
 export const uploadAPI = {
   // Upload delivery documents to Cloudinary via backend
-  uploadDocument: async (documentUri, documentType) => {
+  uploadDocument: async (documentUri, documentType, { requiresAuth = true } = {}) => {
     try {
       // Get auth token first
       const token = await AsyncStorage.getItem('authToken');
-      if (!token) {
+      if (requiresAuth && !token) {
         throw new Error('No auth token found');
       }
 
@@ -102,11 +102,11 @@ export const uploadAPI = {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 120000); // Increased to 120 second timeout
 
-        const response = await fetch(`${BASE_URL}/uploads/image`, {
+        const response = await fetch(`${BASE_URL}/uploads/${requiresAuth ? 'image' : 'public-image' }`, {
           method: 'POST',
           body: formData,
           headers: {
-            'Authorization': `Bearer ${token}`,
+            ...(requiresAuth && token ? { 'Authorization': `Bearer ${token}` } : {}),
           },
           signal: controller.signal
         });

@@ -21,7 +21,7 @@ export default function SchedulePickupPage({ navigation, route }) {
             [
               {
                 text: 'OK',
-                onPress: () => navigation.navigate('UserProfileSelector')
+                onPress: () => navigation.navigate('Auth')
               }
             ]
           );
@@ -36,7 +36,7 @@ export default function SchedulePickupPage({ navigation, route }) {
           [
             {
               text: 'OK',
-              onPress: () => navigation.navigate('UserProfileSelector')
+              onPress: () => navigation.navigate('Auth')
             }
           ]
         );
