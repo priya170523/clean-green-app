@@ -98,15 +98,7 @@ router.post('/login', [
 
     const { email, password, role } = req.body;
 
-    // Ensure role is provided and valid
-    if (!role || !['user', 'delivery'].includes(role)) {
-      return res.status(400).json({
-        status: 'error',
-        message: 'Invalid role specified'
-      });
-    }
-
-    // Find user and include password for comparison
+    // Find user first to determine their role
     const user = await User.findOne({ email }).select('+password');
 
     if (!user) {
@@ -115,6 +107,26 @@ router.post('/login', [
         message: 'Invalid email or password'
       });
     }
+
+    // For admin users, role validation is not required in request body
+    // For regular users, ensure role is provided and valid
+    if (user.role !== 'admin') {
+      if (!role || !['user', 'delivery'].includes(role)) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Invalid role specified'
+        });
+      }
+      
+      // Ensure the role in request matches the user's actual role
+      if (role !== user.role) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Role mismatch'
+        });
+      }
+    }
+
 
     // Check if user is active
     if (!user.isActive) {
